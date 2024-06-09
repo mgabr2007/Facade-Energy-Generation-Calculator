@@ -5,6 +5,23 @@ import requests
 from datetime import datetime
 from io import StringIO
 
+# Function to check NSRDB data availability
+def check_nsrdb_data_availability(api_key, latitude, longitude):
+    url = (
+        f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-availability.json?"
+        f"api_key={api_key}&lat={latitude}&lon={longitude}"
+    )
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('available')
+        else:
+            return False
+    except Exception as e:
+        st.error(f"Error checking NSRDB data availability: {e}")
+        return False
+
 # Function to fetch TMY data from NSRDB
 def fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation):
     url = (
@@ -69,9 +86,13 @@ if st.button("Calculate Energy Generation"):
         # Generate time range
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
-        # Fetch TMY data from NSRDB
+        # Check NSRDB data availability
         if api_key and full_name and email and affiliation:
-            nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation)
+            data_available = check_nsrdb_data_availability(api_key, latitude, longitude)
+            if not data_available:
+                st.error("NSRDB data is not available for the provided location.")
+            else:
+                nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation)
         else:
             st.error("Please enter your NSRDB API key, full name, email, and affiliation.")
             nsrdb_data = None
