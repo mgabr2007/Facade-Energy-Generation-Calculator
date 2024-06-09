@@ -56,11 +56,11 @@ if st.button("Calculate Energy Generation"):
             solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
             # Get irradiance data from TMY
-            dni = tmy_data['dni'].reindex(times)
-            ghi = tmy_data['ghi'].reindex(times)
-            dhi = tmy_data['dhi'].reindex(times)
-            temp_air = tmy_data['temp_air'].reindex(times)
-            wind_speed = tmy_data['wind_speed'].reindex(times)
+            dni = tmy_data['dni']
+            ghi = tmy_data['ghi']
+            dhi = tmy_data['dhi']
+            temp_air = tmy_data['temp_air']
+            wind_speed = tmy_data['wind_speed']
 
             # Calculate irradiance on the facade
             irradiance = pvlib.irradiance.get_total_irradiance(
@@ -81,10 +81,10 @@ if st.button("Calculate Energy Generation"):
             poa_irradiance = irradiance['poa_global']
 
             # Calculate the cell temperature using the Sandia method
-            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance, temp_air=temp_air, wind_speed=wind_speed)
+            cell_temperature = pvlib.temperature.sapm_cell(poa_global=pd.Series(poa_irradiance, index=times), temp_air=pd.Series(temp_air, index=times), wind_speed=pd.Series(wind_speed, index=times))
 
             # Calculate the DC power output
-            dc_power = pv_system.sapm(poa_irradiance, cell_temperature)['p_mp']
+            dc_power = pv_system.sapm(pd.Series(poa_irradiance, index=times), cell_temperature)['p_mp']
 
             # Convert DC power to AC power
             ac_power = pv_system.snlinverter(dc_power)
