@@ -32,8 +32,12 @@ system_losses = st.number_input("System Losses (%)", min_value=0.0, max_value=10
 # Retrieve and display available PV modules
 sam_data = pvlib.pvsystem.retrieve_sam('SandiaMod')
 available_modules = list(sam_data.keys())
-
 module_name = st.selectbox("Select PV Module", available_modules, help="Select the PV module from the available list.")
+
+# Retrieve and display available inverters
+inverter_data = pvlib.pvsystem.retrieve_sam('CECInverter')
+available_inverters = list(inverter_data.keys())
+inverter_name = st.selectbox("Select Inverter", available_inverters, help="Select the inverter from the available list.")
 
 if st.button("Calculate Energy Generation"):
     # Validate input dates
@@ -126,8 +130,10 @@ if st.button("Calculate Energy Generation"):
             # Debug: Check DC power values
             st.write("DC Power Head", dc_power.head())
 
+            # Select the chosen inverter
+            inverter = inverter_data[inverter_name]
+
             # Convert DC power to AC power using SNL inverter model
-            inverter = pvlib.pvsystem.retrieve_sam('CECInverter')['SMA_America__SC630CP_US__2014_']  # Example inverter
             try:
                 ac_power = pvlib.inverter.snl(dc_power, inverter)
             except Exception as e:
