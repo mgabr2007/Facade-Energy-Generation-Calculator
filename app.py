@@ -97,152 +97,152 @@ if st.button("Calculate Energy Generation"):
             st.error("Please enter your NSRDB API key, full name, email, and affiliation.")
             nsrdb_data = None
 
-        if nsrdb_data is not None:
-            # Inspect data columns to find the timestamp column
-            st.write("**NSRDB Data Columns**")
-            st.write(nsrdb_data.columns)
+        if nsrdb_data is None:
+            st.stop()
 
-            # Assuming the first column is the timestamp column
-            timestamp_column = nsrdb_data.columns[0]
+        # Inspect data columns to find the timestamp column
+        st.write("**NSRDB Data Columns**")
+        st.write(nsrdb_data.columns)
 
-            # Ensure the timestamp column is converted to datetime and set as the index
-            try:
-                nsrdb_data['time'] = pd.to_datetime(nsrdb_data[timestamp_column])
-                nsrdb_data = nsrdb_data.set_index('time')
-                nsrdb_data = nsrdb_data[~nsrdb_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
-                nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
-            except Exception as e:
-                st.error(f"Error processing NSRDB time data: {e}")
-                st.stop()
+        # Assuming the first column is the timestamp column
+        timestamp_column = nsrdb_data.columns[0]
 
-            # Sort the index to ensure it is monotonic
-            nsrdb_data = nsrdb_data.sort_index()
+        # Ensure the timestamp column is converted to datetime and set as the index
+        try:
+            nsrdb_data['time'] = pd.to_datetime(nsrdb_data[timestamp_column])
+            nsrdb_data = nsrdb_data.set_index('time')
+            nsrdb_data = nsrdb_data[~nsrdb_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
+            nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
+        except Exception as e:
+            st.error(f"Error processing NSRDB time data: {e}")
+            st.stop()
 
-            # Align NSRDB data to the study period
-            try:
-                nsrdb_data = nsrdb_data.reindex(times, method='nearest')
-            except Exception as e:
-                st.error(f"Error reindexing NSRDB data: {e}")
-                st.stop()
-            
-            # Interpolate zero values
-            nsrdb_data['DNI'] = interpolate_zero_values(nsrdb_data['DNI'])
-            nsrdb_data['GHI'] = interpolate_zero_values(nsrdb_data['GHI'])
-            nsrdb_data['DHI'] = interpolate_zero_values(nsrdb_data['DHI'])
+        # Sort the index to ensure it is monotonic
+        nsrdb_data = nsrdb_data.sort_index()
 
-            # Check for remaining zero values
-            if (nsrdb_data['GHI'] == 0).all() or (nsrdb_data['DNI'] == 0).all() or (nsrdb_data['DHI'] == 0).all():
-                st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
-                margin_of_error = 20  # Example margin of error in percentage
-                st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
+        # Align NSRDB data to the study period
+        try:
+            nsrdb_data = nsrdb_data.reindex(times, method='nearest')
+        except Exception as e:
+            st.error(f"Error reindexing NSRDB data: {e}")
+            st.stop()
+        
+        # Interpolate zero values
+        nsrdb_data['DNI'] = interpolate_zero_values(nsrdb_data['DNI'])
+        nsrdb_data['GHI'] = interpolate_zero_values(nsrdb_data['GHI'])
+        nsrdb_data['DHI'] = interpolate_zero_values(nsrdb_data['DHI'])
 
-            # Debug: Ensure nsrdb_data index is sorted and aligned
-            st.write("**NSRDB Data Head**")
-            st.write(nsrdb_data.head())
+        # Check for remaining zero values
+        if (nsrdb_data['GHI'] == 0).all() or (nsrdb_data['DNI'] == 0).all() or (nsrdb_data['DHI'] == 0).all():
+            st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
+            margin_of_error = 20  # Example margin of error in percentage
+            st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
-            # Get solar position
-            solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
+        # Debug: Ensure nsrdb_data index is sorted and aligned
+        st.write("**NSRDB Data Head**")
+        st.write(nsrdb_data.head())
 
-            # Get irradiance data from NSRDB
-            dni = nsrdb_data['DNI']
-            ghi = nsrdb_data['GHI']
-            dhi = nsrdb_data['DHI']
-            temp_air = nsrdb_data['Temperature']
-            wind_speed = nsrdb_data['Wind Speed']
-            
-            # Debug: Ensure inputs are Series with matching indices
-            st.write("**DNI Head**")
-            st.write(dni.head())
+        # Get solar position
+        solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
-            st.write("**Temp Air Head**")
-            st.write(temp_air.head())
+        # Get irradiance data from NSRDB
+        dni = nsrdb_data['DNI']
+        ghi = nsrdb_data['GHI']
+        dhi = nsrdb_data['DHI']
+        temp_air = nsrdb_data['Temperature']
+        wind_speed = nsrdb_data['Wind Speed']
+        
+        # Debug: Ensure inputs are Series with matching indices
+        st.write("**DNI Head**")
+        st.write(dni.head())
 
-            st.write("**Wind Speed Head**")
-            st.write(wind_speed.head())
+        st.write("**Temp Air Head**")
+        st.write(temp_air.head())
 
-            # Calculate irradiance on the facade
-            irradiance = pvlib.irradiance.get_total_irradiance(
-                surface_tilt=90,
-                surface_azimuth=facade_azimuth,
-                solar_zenith=solar_position['apparent_zenith'],
-                solar_azimuth=solar_position['azimuth'],
-                dni=dni,
-                ghi=ghi,
-                dhi=dhi
+        st.write("**Wind Speed Head**")
+        st.write(wind_speed.head())
+
+        # Calculate irradiance on the facade
+        irradiance = pvlib.irradiance.get_total_irradiance(
+            surface_tilt=90,
+            surface_azimuth=facade_azimuth,
+            solar_zenith=solar_position['apparent_zenith'],
+            solar_azimuth=solar_position['azimuth'],
+            dni=dni,
+            ghi=ghi,
+            dhi=dhi
+        )
+
+        # Debug: Check irradiance values
+        st.write("**Irradiance Head**")
+        st.write(irradiance.head())
+
+        # Ensure inputs are compatible for cell temperature calculation
+        poa_irradiance = irradiance['poa_global']
+
+        # Debug: Check poa_irradiance values
+        st.write("**POA Irradiance Head**")
+        st.write(poa_irradiance.head())
+
+        # Parameters for the Sandia Cell Temperature Model
+        a = -3.47  # Default parameter
+        b = -0.0594  # Default parameter
+        deltaT = 3  # Default parameter
+
+        # Calculate the cell temperature using the Sandia method
+        try:
+            cell_temperature = pvlib.temperature.sapm_cell(
+                poa_global=pd.Series(poa_irradiance.values, index=times),
+                temp_air=pd.Series(temp_air.values, index=times),
+                wind_speed=pd.Series(wind_speed.values, index=times),
+                a=a,
+                b=b,
+                deltaT=deltaT
             )
+        except Exception as e:
+            st.error(f"Error calculating cell temperature: {e}")
+            st.stop()
 
-            # Debug: Check irradiance values
-            st.write("**Irradiance Head**")
-            st.write(irradiance.head())
+        # Debug: Check cell temperature values
+        st.write("**Cell Temperature Head**")
+        st.write(cell_temperature.head())
 
-            # Ensure inputs are compatible for cell temperature calculation
-            poa_irradiance = irradiance['poa_global']
+        # Create PV system with selected module
+        pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module, inverter_parameters=selected_inverter)
 
-            # Debug: Check poa_irradiance values
-            st.write("**POA Irradiance Head**")
-            st.write(poa_irradiance.head())
+        # Calculate the DC power output
+        try:
+            dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
+            dc_power_output = dc_power['p_mp']
+        except Exception as e:
+            st.error(f"Error calculating DC power: {e}")
+            st.stop()
 
-            # Parameters for the Sandia Cell Temperature Model
-            a = -3.47  # Default parameter
-            b = -0.0594  # Default parameter
-            deltaT = 3  # Default parameter
+        # Debug: Check DC power values
+        st.write("**DC Power Head**")
+        st.write(dc_power_output.head())
 
-            # Calculate the cell temperature using the Sandia method
-            try:
-                cell_temperature = pvlib.temperature.sapm_cell(
-                    poa_global=pd.Series(poa_irradiance.values, index=times),
-                    temp_air=pd.Series(temp_air.values, index=times),
-                    wind_speed=pd.Series(wind_speed.values, index=times),
-                    a=a,
-                    b=b,
-                    deltaT=deltaT
-                )
-            except Exception as e:
-                st.error(f"Error calculating cell temperature: {e}")
-                st.stop()
+        # Convert DC power to AC power using Sandia inverter model
+        try:
+            ac_power = pvlib.inverter.sandia(dc_power_output, selected_inverter)
+        except Exception as e:
+            st.error(f"Error calculating AC power: {e}")
+            st.stop()
 
-            # Debug: Check cell temperature values
-            st.write("**Cell Temperature Head**")
-            st.write(cell_temperature.head())
+        # Debug: Check AC power values
+        st.write("**AC Power Head**")
+        st.write(ac_power.head())
 
-            # Create PV system with selected module
-            pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module, inverter_parameters=selected_inverter)
+        # Calculate total energy generated by the facade (Wh)
+        energy_generated = ac_power.sum() * facade_area
 
-            # Calculate the DC power output
-            try:
-                dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
-                dc_power_output = dc_power['p_mp']
-            except Exception as e:
-                st.error(f"Error calculating DC power: {e}")
-                st.stop()
+        # Apply system losses
+        effective_energy_generated = energy_generated * (1 - system_losses / 100)
 
-            # Debug: Check DC power values
-            st.write("**DC Power Head**")
-            st.write(dc_power_output.head())
+        # Convert to kWh
+        energy_generated_kWh = effective_energy_generated / 1000
 
-            # Convert DC power to AC power using Sandia inverter model
-            try:
-                ac_power = pvlib.inverter.sandia(dc_power_output, selected_inverter)
-            except Exception as e:
-                st.error(f"Error calculating AC power: {e}")
-                st.stop()
+        st.success(f"Total energy generated by the facade from {study_start_date} to {study_end_date}: {energy_generated_kWh:.2f} kWh")
 
-            # Debug: Check AC power values
-            st.write("**AC Power Head**")
-            st.write(ac_power.head())
-
-            # Calculate total energy generated by the facade (Wh)
-            energy_generated = ac_power.sum() * facade_area
-
-            # Apply system losses
-            effective_energy_generated = energy_generated * (1 - system_losses / 100)
-
-            # Convert to kWh
-            energy_generated_kWh = effective_energy_generated / 1000
-
-            st.success(f"Total energy generated by the facade from {study_start_date} to {study_end_date}: {energy_generated_kWh:.2f} kWh")
-
-            # Provide feedback on data needs
-            st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI, ambient temperature, and wind speed. Using site-specific data rather than generic TMY data can improve accuracy.")
-        else:
-            st.error("Unable to fetch sufficient data from available sources.")
+        # Provide feedback on data needs
+        st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI, ambient temperature, and wind speed. Using site-specific data rather than generic TMY data can improve accuracy.")
