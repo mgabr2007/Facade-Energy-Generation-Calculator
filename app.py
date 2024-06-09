@@ -16,7 +16,7 @@ def fetch_tmy_data(latitude, longitude):
 st.title("Facade Energy Generation Calculator")
 
 st.write("""
-This tool allows you to calculate the potential energy generation from a building facade based on user inputs such as facade azimuth, location, study time, and facade area. 
+This tool calculates the potential energy generation from a building facade based on user inputs such as facade azimuth, location, study time, and facade area. 
 For more accurate results, detailed meteorological data specific to your location is recommended.
 """)
 
@@ -41,43 +41,11 @@ available_inverters = list(inverter_data.keys())
 inverter_name = st.selectbox("Select Inverter", available_inverters, help="Select the inverter from the available list.")
 selected_inverter = inverter_data[inverter_name]
 
-# Display keys to debug and inspect data structure
-st.write("Selected PV Module Keys:", list(selected_pv_module.keys()))
-st.write("Selected Inverter Keys:", list(selected_inverter.keys()))
-
-# Function to check compatibility between PV module and inverter
-def check_compatibility(pv_module, inverter):
-    try:
-        max_power = pv_module['Pmpo']
-        max_voltage = pv_module['Vmpo']
-        max_current = pv_module['Impo']
-        inverter_voltage = inverter['Vac']
-        inverter_power = inverter['Pdco']
-        
-        if max_voltage > inverter_voltage:
-            st.error("Selected PV module's voltage exceeds the inverter's voltage rating.")
-            return False
-        if max_power > inverter_power:
-            st.error("Selected PV module's power exceeds the inverter's power rating.")
-            return False
-        if max_current > inverter['Idco']:
-            st.error("Selected PV module's current exceeds the inverter's current rating.")
-            return False
-    except KeyError as e:
-        st.error(f"Key error: {e}")
-        return False
-
-    return True
-
 if st.button("Calculate Energy Generation"):
     # Validate input dates
     if study_start_date >= study_end_date:
         st.error("End date must be after start date.")
     else:
-        # Check compatibility between PV module and inverter
-        if not check_compatibility(selected_pv_module, selected_inverter):
-            st.stop()
-
         # Generate time range
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
@@ -122,10 +90,6 @@ if st.button("Calculate Energy Generation"):
             # Debug: Check irradiance values
             st.write("Irradiance Head", irradiance.head())
 
-            # Select the chosen PV module
-            pv_module = sam_data[module_name]
-            pv_system = pvlib.pvsystem.PVSystem(module_parameters=pv_module)
-
             # Ensure inputs are compatible for cell temperature calculation
             poa_irradiance = irradiance['poa_global']
 
@@ -156,7 +120,7 @@ if st.button("Calculate Energy Generation"):
 
             # Calculate the DC power output
             try:
-                dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
+                dc_power = selected_pv_module.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
                 dc_power_output = dc_power['p_mp']
             except Exception as e:
                 st.error(f"Error calculating DC power: {e}")
