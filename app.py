@@ -46,6 +46,9 @@ if st.button("Calculate Energy Generation"):
         # Fetch TMY data
         tmy_data = fetch_tmy_data(latitude, longitude)
         if tmy_data is not None:
+            # Align TMY data to the study period
+            tmy_data = tmy_data.reindex(times, method='nearest')
+
             # Get solar position
             solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
@@ -73,11 +76,9 @@ if st.button("Calculate Energy Generation"):
 
             # Ensure inputs are compatible for cell temperature calculation
             poa_irradiance = irradiance['poa_global']
-            temp_air_series = pd.Series(temp_air.values, index=poa_irradiance.index)
-            wind_speed_series = pd.Series(wind_speed.values, index=poa_irradiance.index)
 
             # Calculate the cell temperature using the Sandia method
-            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance, temp_air=temp_air_series, wind_speed=wind_speed_series)
+            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance, temp_air=temp_air, wind_speed=wind_speed)
 
             # Calculate the DC power output
             dc_power = pv_system.sapm(poa_irradiance, cell_temperature)['p_mp']
