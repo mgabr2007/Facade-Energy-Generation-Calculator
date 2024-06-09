@@ -71,9 +71,13 @@ if st.button("Calculate Energy Generation"):
             pv_module = sam_data[module_name]
             pv_system = pvlib.pvsystem.PVSystem(module_parameters=pv_module)
 
-            # Calculate the cell temperature using the Sandia method
+            # Ensure inputs are compatible for cell temperature calculation
             poa_irradiance = irradiance['poa_global']
-            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance, temp_air=temp_air, wind_speed=wind_speed)
+            temp_air_series = pd.Series(temp_air.values, index=poa_irradiance.index)
+            wind_speed_series = pd.Series(wind_speed.values, index=poa_irradiance.index)
+
+            # Calculate the cell temperature using the Sandia method
+            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance, temp_air=temp_air_series, wind_speed=wind_speed_series)
 
             # Calculate the DC power output
             dc_power = pv_system.sapm(poa_irradiance, cell_temperature)['p_mp']
