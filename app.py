@@ -9,8 +9,32 @@ def fetch_tmy_data(latitude, longitude):
         tmy_data = pvlib.iotools.get_pvgis_tmy(latitude, longitude)
         return tmy_data[0]  # Return only the TMY data part
     except Exception as e:
-        st.error(f"Error fetching TMY data: {e}")
+        st.error(f"Error fetching TMY data from PVGIS: {e}")
         return None
+
+# Function to fetch TMY data from NSRDB
+def fetch_nsrdb_data(latitude, longitude):
+    try:
+        # Assuming that the NSRDB fetch function is similar to PVGIS
+        nsrdb_data = pvlib.iotools.get_pvgis_tmy(latitude, longitude)  # Replace with actual NSRDB function
+        return nsrdb_data[0]  # Return only the NSRDB data part
+    except Exception as e:
+        st.error(f"Error fetching data from NSRDB: {e}")
+        return None
+
+# Function to check data completeness
+def check_data_completeness(data):
+    missing_components = []
+    if (data['ghi'] == 0).all():
+        missing_components.append('GHI')
+    if (data['dni'] == 0).all():
+        missing_components.append('DNI')
+    if (data['dhi'] == 0).all():
+        missing_components.append('DHI')
+    if not missing_components:
+        return True, None
+    else:
+        return False, missing_components
 
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
@@ -49,8 +73,12 @@ if st.button("Calculate Energy Generation"):
         # Generate time range
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
-        # Fetch TMY data
+        # Fetch TMY data from PVGIS
         tmy_data = fetch_tmy_data(latitude, longitude)
+        if tmy_data is None:
+            # Fetch TMY data from NSRDB if PVGIS data is unavailable
+            tmy_data = fetch_nsrdb_data(latitude, longitude)
+
         if tmy_data is not None:
             # Sort the index to ensure it is monotonic
             tmy_data = tmy_data.sort_index()
@@ -58,9 +86,15 @@ if st.button("Calculate Energy Generation"):
             # Align TMY data to the study period
             tmy_data = tmy_data.reindex(times, method='nearest')
             
+            # Check data completeness
+            is_complete, missing_components = check_data_completeness(tmy_data)
+            if not is_complete:
+                st.error(f"Missing data components: {', '.join(missing_components)}")
+                st.stop()
+            
             # Debug: Ensure tmy_data index is sorted and aligned
             st.write("**TMY Data Head**")
-            st.write("This table displays the head (first few rows) of the Typical Meteorological Year (TMY) data fetched from the PVGIS database. It provides an overview of the meteorological data for the specified location and study period, including parameters like direct normal irradiance (DNI), global horizontal irradiance (GHI), diffuse horizontal irradiance (DHI), ambient temperature (temp_air), and wind speed.")
+            st.write("This table displays the head (first few rows) of the Typical Meteorological Year (TMY) data fetched from the PVGIS or NSRDB database. It provides an overview of the meteorological data for the specified location and study period, including parameters like direct normal irradiance (DNI), global horizontal irradiance (GHI), diffuse horizontal irradiance (DHI), ambient temperature (temp_air), and wind speed.")
             st.write(tmy_data.head())
 
             # Get solar position
@@ -72,10 +106,6 @@ if st.button("Calculate Energy Generation"):
             dhi = tmy_data['dhi']
             temp_air = tmy_data['temp_air']
             wind_speed = tmy_data['wind_speed']
-
-            # Check for zero values in irradiance
-            if (ghi == 0).all() or (dni == 0).all() or (dhi == 0).all():
-                st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
             
             # Debug: Ensure inputs are Series with matching indices
             st.write("**DNI Head**")
@@ -179,3 +209,5 @@ if st.button("Calculate Energy Generation"):
 
             # Provide feedback on data needs
             st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI, ambient temperature, and wind speed. Using site-specific data rather than generic TMY data can improve accuracy.")
+        else:
+            st.error("Unable to fetch sufficient data from available sources.")
