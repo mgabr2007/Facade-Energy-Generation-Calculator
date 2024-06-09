@@ -1,18 +1,13 @@
 import streamlit as st
-import pvlib
 import pandas as pd
 import requests
 from datetime import datetime
 from io import StringIO
 
-# Constants for PVGIS API
-PVGIS_START_YEAR = 2005
-PVGIS_END_YEAR = 2020
-
 # Function to fetch data from PVGIS
 def fetch_pvgis_data(latitude, longitude, start_date, end_date):
-    start_year = max(start_date.year, PVGIS_START_YEAR)
-    end_year = min(end_date.year, PVGIS_END_YEAR)
+    start_year = max(start_date.year, 2005)
+    end_year = min(end_date.year, 2020)
     
     url = (
         f"https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?"
@@ -30,9 +25,9 @@ def fetch_pvgis_data(latitude, longitude, start_date, end_date):
         st.error(f"Error fetching PVGIS data: {e}")
         return None
 
-# Function to interpolate zero values
-def interpolate_zero_values(series):
-    return series.replace(0, pd.NA).interpolate(method='linear').fillna(0)
+# Function to interpolate NaN values
+def interpolate_nan_values(series):
+    return series.interpolate(method='linear').fillna(0)
 
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
@@ -78,8 +73,8 @@ if st.button("Calculate Energy Generation"):
             st.error("Required irradiance data columns are missing from the PVGIS data.")
             st.stop()
 
-        # Interpolate zero values
-        pvgis_data[poa_col] = interpolate_zero_values(pvgis_data[poa_col])
+        # Interpolate NaN values
+        pvgis_data[poa_col] = interpolate_nan_values(pd.to_numeric(pvgis_data[poa_col], errors='coerce'))
 
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
