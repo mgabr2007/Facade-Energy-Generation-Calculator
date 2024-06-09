@@ -39,7 +39,7 @@ For more accurate results, detailed meteorological data specific to your locatio
 # User inputs
 facade_azimuth = st.number_input("Facade Azimuth (degrees)", min_value=0, max_value=360, value=180, help="The compass direction the facade is facing, in degrees. 0° is North, 90° is East, 180° is South, and 270° is West.")
 latitude = st.number_input("Location Latitude", min_value=-90.0, max_value=90.0, value=40.7128, help="The geographic latitude of the location.")
-longitude = st.number_input("Location Longitude", min_value=-180.0, max_value=180.0, value=-74.0060, help="The geographic longitude of the location.")  # Ensure longitude is negative for western hemisphere
+longitude = st.number_input("Location Longitude", min_value=-180.0, max_value=180.0, value=-74.0060, help="The geographic longitude of the location.")
 study_start_date = st.date_input("Study Start Date", value=datetime(2024, 6, 1), help="The start date for the energy generation study.")
 study_end_date = st.date_input("Study End Date", value=datetime(2024, 6, 30), help="The end date for the energy generation study.")
 facade_area = st.number_input("Facade Area (m²)", min_value=1.0, value=100.0, help="The area of the facade in square meters.")
@@ -140,7 +140,7 @@ if st.button("Calculate Energy Generation"):
             st.write(temp_air.head())
 
             st.write("**Wind Speed Head**")
-            st.write("            This table displays the head of the wind speed values from the NSRDB data.")
+            st.write("This table displays the head of the wind speed values from the NSRDB data.")
             st.write(wind_speed.head())
 
             # Calculate irradiance on the facade
