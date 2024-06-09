@@ -76,12 +76,16 @@ if st.button("Calculate Energy Generation"):
         st.write("**PVGIS Data Columns**")
         st.write(pvgis_data.columns)
 
-        # Assuming the correct column names from the actual data
-        ghi_col = 'G(i)'  # Global irradiance on the inclined plane
-        dni_col = 'Gb(i)'  # Direct normal irradiance on the inclined plane
-        dhi_col = 'Gd(i)'  # Diffuse horizontal irradiance on the inclined plane
+        # Determine the correct column names for irradiance data
+        possible_ghi_cols = ['G(i)', 'G(h)', 'G(i) poa']  # Global irradiance on inclined or horizontal plane, plane of array
+        possible_dni_cols = ['Gb(i)', 'Gb(n)', 'Gb']  # Direct normal irradiance
+        possible_dhi_cols = ['Gd(i)', 'Gd(h)', 'Gd']  # Diffuse horizontal irradiance
 
-        if ghi_col not in pvgis_data.columns or dni_col not in pvgis_data.columns or dhi_col not in pvgis_data.columns:
+        ghi_col = next((col for col in possible_ghi_cols if col in pvgis_data.columns), None)
+        dni_col = next((col for col in possible_dni_cols if col in pvgis_data.columns), None)
+        dhi_col = next((col for col in possible_dhi_cols if col in pvgis_data.columns), None)
+
+        if not ghi_col or not dni_col or not dhi_col:
             st.error("Required irradiance data columns are missing from the PVGIS data.")
             st.stop()
 
@@ -89,12 +93,6 @@ if st.button("Calculate Energy Generation"):
         pvgis_data[ghi_col] = interpolate_zero_values(pvgis_data[ghi_col])
         pvgis_data[dni_col] = interpolate_zero_values(pvgis_data[dni_col])
         pvgis_data[dhi_col] = interpolate_zero_values(pvgis_data[dhi_col])
-
-        # Check for remaining zero values
-        if (pvgis_data[ghi_col] == 0).all() or (pvgis_data[dni_col] == 0).all() or (pvgis_data[dhi_col] == 0).all():
-            st.warning(f"Irradiance values ({ghi_col}, {dni_col}, {dhi_col}) contain zeros. This may affect the accuracy of the calculations.")
-            margin_of_error = 20  # Example margin of error in percentage
-            st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
