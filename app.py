@@ -12,6 +12,26 @@ def fetch_tmy_data(latitude, longitude):
         st.error(f"Error fetching TMY data: {e}")
         return None
 
+# Function to check compatibility between PV module and inverter
+def check_compatibility(pv_module, inverter):
+    max_power = pv_module['Pmp']
+    max_voltage = pv_module['Vmpo']
+    max_current = pv_module['Impo']
+    inverter_voltage = inverter['Vac']
+    inverter_power = inverter['Pdco']
+    
+    if max_voltage > inverter_voltage:
+        st.error("Selected PV module's voltage exceeds the inverter's voltage rating.")
+        return False
+    if max_power > inverter_power:
+        st.error("Selected PV module's power exceeds the inverter's power rating.")
+        return False
+    if max_current > inverter['Idco']:
+        st.error("Selected PV module's current exceeds the inverter's current rating.")
+        return False
+    
+    return True
+
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
 
@@ -133,6 +153,10 @@ if st.button("Calculate Energy Generation"):
 
             # Select the chosen inverter
             inverter = inverter_data[inverter_name]
+
+            # Check compatibility between PV module and inverter
+            if not check_compatibility(pv_module, inverter):
+                st.stop()
 
             # Convert DC power to AC power using Sandia inverter model
             try:
