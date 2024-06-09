@@ -77,9 +77,9 @@ if st.button("Calculate Energy Generation"):
             nsrdb_data = None
 
         if nsrdb_data is not None:
-            # Ensure the 'time' column is converted to datetime and set as the index
+            # Ensure the 'Unnamed: 0' column is converted to datetime and set as the index
             try:
-                nsrdb_data['time'] = pd.to_datetime(nsrdb_data[['Year', 'Month', 'Day', 'Hour']])
+                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['Unnamed: 0'])
                 nsrdb_data = nsrdb_data.set_index('time')
                 nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
             except Exception as e:
@@ -132,97 +132,4 @@ if st.button("Calculate Energy Generation"):
             st.write(temp_air.head())
 
             st.write("**Wind Speed Head**")
-            st.write("This table displays the head of the wind speed values from the NSRDB data. Wind speed is also used in calculating the cell temperature. Higher wind speeds can help cool the PV modules, potentially increasing their efficiency.")
-            st.write(wind_speed.head())
-
-            # Calculate irradiance on the facade
-            irradiance = pvlib.irradiance.get_total_irradiance(
-                surface_tilt=90,
-                surface_azimuth=facade_azimuth,
-                solar_zenith=solar_position['apparent_zenith'],
-                solar_azimuth=solar_position['azimuth'],
-                dni=dni,
-                ghi=ghi,
-                dhi=dhi
-            )
-
-            # Debug: Check irradiance values
-            st.write("**Irradiance Head**")
-            st.write("This table shows the head of the irradiance values calculated on the facade. It includes components like direct, diffuse, and global irradiance on the plane of the array (POA). These values are critical for determining the total solar energy incident on the facade.")
-            st.write(irradiance.head())
-
-            # Ensure inputs are compatible for cell temperature calculation
-            poa_irradiance = irradiance['poa_global']
-
-            # Debug: Check poa_irradiance values
-            st.write("**POA Irradiance Head**")
-            st.write("This table presents the head of the Plane of Array (POA) irradiance values. POA irradiance is the total irradiance received by the tilted surface (the facade in this case). It combines direct, diffuse, and reflected irradiance components and is used to calculate the energy production of the PV modules.")
-            st.write(poa_irradiance.head())
-
-            # Parameters for the Sandia Cell Temperature Model
-            a = -3.47  # Default parameter
-            b = -0.0594  # Default parameter
-            deltaT = 3  # Default parameter
-
-            # Calculate the cell temperature using the Sandia method
-            try:
-                cell_temperature = pvlib.temperature.sapm_cell(
-                    poa_global=pd.Series(poa_irradiance.values, index=times),
-                    temp_air=pd.Series(temp_air.values, index=times),
-                    wind_speed=pd.Series(wind_speed.values, index=times),
-                    a=a,
-                    b=b,
-                    deltaT=deltaT
-                )
-            except Exception as e:
-                st.error(f"Error calculating cell temperature: {e}")
-                st.stop()
-
-            # Debug: Check cell temperature values
-            st.write("**Cell Temperature Head**")
-            st.write("This table displays the head of the cell temperature values calculated using the Sandia temperature model. Cell temperature significantly affects the performance and efficiency of PV modules. This table helps verify that the temperature calculations are correctly applied.")
-            st.write(cell_temperature.head())
-
-            # Create PV system with selected module
-            pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module, inverter_parameters=selected_inverter)
-
-            # Calculate the DC power output
-            try:
-                dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
-                dc_power_output = dc_power['p_mp']
-            except Exception as e:
-                st.error(f"Error calculating DC power: {e}")
-                st.stop()
-
-            # Debug: Check DC power values
-            st.write("**DC Power Head**")
-            st.write("This table shows the head of the DC power output calculated by the PV modules. It represents the maximum power point (p_mp) of the PV modules.")
-            st.write(dc_power_output.head())
-
-            # Convert DC power to AC power using Sandia inverter model
-            try:
-                ac_power = pvlib.inverter.sandia(dc_power_output, selected_inverter)
-            except Exception as e:
-                st.error(f"Error calculating AC power: {e}")
-                st.stop()
-
-            # Debug: Check AC power values
-            st.write("**AC Power Head**")
-            st.write("This table displays the head of the AC power output calculated using the Sandia inverter model. It represents the actual usable power after conversion from DC to AC.")
-            st.write(ac_power.head())
-
-            # Calculate total energy generated by the facade (Wh)
-            energy_generated = ac_power.sum() * facade_area
-
-            # Apply system losses
-            effective_energy_generated = energy_generated * (1 - system_losses / 100)
-
-            # Convert to kWh
-            energy_generated_kWh = effective_energy_generated / 1000
-
-            st.success(f"Total energy generated by the facade from {study_start_date} to {study_end_date}: {energy_generated_kWh:.2f} kWh")
-
-            # Provide feedback on data needs
-            st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI, ambient temperature, and wind speed. Using site-specific data rather than generic TMY data can improve accuracy.")
-        else:
-            st.error("Unable to fetch sufficient data from available sources.")
+            st.write("This table displays the head of the wind speed values from the NSRDB data &#8203;:citation[oaicite:0]{index=0}&#8203;
