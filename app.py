@@ -133,9 +133,9 @@ if st.button("Calculate Energy Generation"):
             # Select the chosen inverter
             inverter = inverter_data[inverter_name]
 
-            # Convert DC power to AC power using SNL inverter model
+            # Convert DC power to AC power using Sandia inverter model
             try:
-                ac_power = pvlib.inverter.snl(dc_power, inverter)
+                ac_power = pvlib.inverter.sandia(dc_power, inverter)
             except Exception as e:
                 st.error(f"Error calculating AC power: {e}")
                 st.stop()
