@@ -1,31 +1,28 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 
-# Function to fetch data from PVGIS
-def fetch_pvgis_data(file_path):
+# Function to fetch data from PVGIS TMY file
+def fetch_pvgis_tmy_data(file_path):
     try:
-        data = pd.read_csv(file_path, skiprows=1, header=None)
-        data.columns = ['Index', 'Timestamp', 'Col1', 'Col2', 'Col3', 'Col4', 'Col5']
-        data['Timestamp'] = pd.to_datetime(data['Timestamp'], format='%Y%m%d:%H%M', errors='coerce')
-        data = data.dropna(subset=['Timestamp'])  # Drop rows where 'Timestamp' could not be parsed
-        data = data.set_index('Timestamp')
+        data = pd.read_csv(file_path, skiprows=16)  # Skip the initial 16 metadata lines
         return data
     except Exception as e:
         st.error(f"Error processing PVGIS data: {e}")
         return None
 
 # Streamlit app interface
-st.title("Fetch PVGIS Data")
+st.title("Fetch PVGIS TMY Data")
 
 st.write("""
-This tool fetches solar irradiance data from a provided PVGIS CSV file.
+This tool fetches Typical Meteorological Year (TMY) data from a provided PVGIS CSV file.
 """)
 
-# Load the provided PVGIS data
-file_path_new = '/mnt/data/2024-06-09T21-26_export.csv'
-pvgis_data_new = fetch_pvgis_data(file_path_new)
+# File uploader
+uploaded_file = st.file_uploader("Choose a file")
 
-if pvgis_data_new is not None:
-    # Display the first few rows of the data
-    st.write("**PVGIS Data Head**")
-    st.write(pvgis_data_new.head(20))
+if uploaded_file is not None:
+    pvgis_tmy_data = fetch_pvgis_tmy_data(uploaded_file)
+    if pvgis_tmy_data is not None:
+        # Display the first few rows of the data
+        st.write("**PVGIS TMY Data Head**")
+        st.write(pvgis_tmy_data.head(20))
