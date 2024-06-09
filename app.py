@@ -132,12 +132,12 @@ if st.button("Calculate Energy Generation"):
         st.write("**Meteorological Data Columns**")
         st.write(nsrdb_data.columns)
 
-        # Assuming the first column is the timestamp column
-        timestamp_column = nsrdb_data.columns[0]
-
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
-            nsrdb_data['time'] = pd.to_datetime(nsrdb_data[timestamp_column])
+            if 'time' in nsrdb_data.columns:
+                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['time'])
+            elif 'date' in nsrdb_data.columns:
+                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['date'] + ' ' + nsrdb_data['time'], format='%Y%m%d:%H%M')
             nsrdb_data = nsrdb_data.set_index('time')
             nsrdb_data = nsrdb_data[~nsrdb_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
             nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
