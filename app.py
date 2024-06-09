@@ -9,7 +9,8 @@ from io import StringIO
 def fetch_nsrdb_tmy(api_key, latitude, longitude):
     url = (
         f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-tmy-download.csv?"
-        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=2018&leap_day=false&interval=60&utc=false&full_name=YourName&email=YourEmail@example.com&affiliation=YourAffiliation&mailing_list=false"
+        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=2018&leap_day=false&interval=60&utc=false"
+        f"&full_name=YourName&email=YourEmail@example.com&affiliation=YourAffiliation&mailing_list=false"
     )
     try:
         response = requests.get(url)
@@ -17,7 +18,7 @@ def fetch_nsrdb_tmy(api_key, latitude, longitude):
             data = pd.read_csv(StringIO(response.text), skiprows=2)
             return data
         else:
-            st.error(f"Error fetching NSRDB data: {response.status_code}")
+            st.error(f"Error fetching NSRDB data: {response.status_code} - {response.text}")
             return None
     except Exception as e:
         st.error(f"Error fetching NSRDB data: {e}")
