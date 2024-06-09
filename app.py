@@ -3,17 +3,18 @@ import pvlib
 import pandas as pd
 import requests
 from datetime import datetime
+from io import StringIO
 
 # Function to fetch TMY data from NSRDB
 def fetch_nsrdb_tmy(api_key, latitude, longitude):
     url = (
         f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-tmy-download.csv?"
-        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=2018&leap_day=false&interval=60&utc=false"
+        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=2018&leap_day=false&interval=60&utc=false&full_name=YourName&email=YourEmail@example.com&affiliation=YourAffiliation&mailing_list=false"
     )
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            data = pd.read_csv(pd.compat.StringIO(response.text), skiprows=2)
+            data = pd.read_csv(StringIO(response.text), skiprows=2)
             return data
         else:
             st.error(f"Error fetching NSRDB data: {response.status_code}")
@@ -21,6 +22,10 @@ def fetch_nsrdb_tmy(api_key, latitude, longitude):
     except Exception as e:
         st.error(f"Error fetching NSRDB data: {e}")
         return None
+
+# Function to interpolate zero values
+def interpolate_zero_values(series):
+    return series.replace(0, pd.NA).interpolate(method='linear').fillna(0)
 
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
@@ -65,6 +70,7 @@ if st.button("Calculate Energy Generation"):
             nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude)
         else:
             st.error("Please enter your NSRDB API key.")
+            nsrdb_data = None
 
         if nsrdb_data is not None:
             # Sort the index to ensure it is monotonic
