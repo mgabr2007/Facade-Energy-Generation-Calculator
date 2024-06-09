@@ -46,6 +46,9 @@ if st.button("Calculate Energy Generation"):
         # Fetch TMY data
         tmy_data = fetch_tmy_data(latitude, longitude)
         if tmy_data is not None:
+            # Sort the index to ensure it is monotonic
+            tmy_data = tmy_data.sort_index()
+
             # Align TMY data to the study period
             tmy_data = tmy_data.reindex(times, method='nearest')
 
