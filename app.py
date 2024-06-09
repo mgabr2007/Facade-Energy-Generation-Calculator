@@ -113,10 +113,15 @@ if st.button("Calculate Energy Generation"):
         if 'Gd(i)' in pvgis_data.columns:
             pvgis_data['Gd(i)'] = interpolate_zero_values(pvgis_data['Gd(i)'])
 
+        # Ensure all required columns are present
+        required_columns = ['G(i)', 'Gb(i)', 'Gd(i)']
+        for col in required_columns:
+            if col not in pvgis_data.columns:
+                st.error(f"Required column '{col}' is missing from the PVGIS data.")
+                st.stop()
+
         # Check for remaining zero values
-        if ('G(i)' in pvgis_data.columns and (pvgis_data['G(i)'] == 0).all()) or \
-           ('Gb(i)' in pvgis_data.columns and (pvgis_data['Gb(i)'] == 0).all()) or \
-           ('Gd(i)' in pvgis_data.columns and (pvgis_data['Gd(i)'] == 0).all()):
+        if (pvgis_data['G(i)'] == 0).all() or (pvgis_data['Gb(i)'] == 0).all() or (pvgis_data['Gd(i)'] == 0).all():
             st.warning("Irradiance values (G(i), Gb(i), Gd(i)) contain zeros. This may affect the accuracy of the calculations.")
             margin_of_error = 20  # Example margin of error in percentage
             st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
@@ -129,28 +134,23 @@ if st.button("Calculate Energy Generation"):
         solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
         # Get irradiance data
-        dni = pvgis_data['Gb(i)'] if 'Gb(i)' in pvgis_data.columns else None
-        ghi = pvgis_data['G(i)'] if 'G(i)' in pvgis_data.columns else None
-        dhi = pvgis_data['Gd(i)'] if 'Gd(i)' in pvgis_data.columns else None
-        temp_air = pvgis_data['T2m'] if 'T2m' in pvgis_data.columns else None
-        wind_speed = pvgis_data['WS10m'] if 'WS10m' in pvgis_data.columns else None
+        dni = pvgis_data['Gb(i)']
+        ghi = pvgis_data['G(i)']
+        dhi = pvgis_data['Gd(i)']
+        temp_air = pvgis_data['T2m'] if 'T2m' in pvgis_data.columns else pd.Series(25, index=times)  # Default to 25°C if no data
+        wind_speed = pvgis_data['WS10m'] if 'WS10m' in pvgis_data.columns else pd.Series(1, index=times)  # Default to 1 m/s if no data
         
         # Debug: Ensure inputs are Series with matching indices
-        if dni is not None:
-            st.write("**DNI Head**")
-            st.write(dni.head())
-        if ghi is not None:
-            st.write("**GHI Head**")
-            st.write(ghi.head())
-        if dhi is not None:
-            st.write("**DHI Head**")
-            st.write(dhi.head())
-        if temp_air is not None:
-            st.write("**Temperature Head**")
-            st.write(temp_air.head())
-        if wind_speed is not None:
-            st.write("**Wind Speed Head**")
-            st.write(wind_speed.head())
+        st.write("**DNI Head**")
+        st.write(dni.head())
+        st.write("**GHI Head**")
+        st.write(ghi.head())
+        st.write("**DHI Head**")
+        st.write(dhi.head())
+        st.write("**Temperature Head**")
+        st.write(temp_air.head())
+        st.write("**Wind Speed Head**")
+        st.write(wind_speed.head())
 
         # Calculate irradiance on the facade
         irradiance = pvlib.irradiance.get_total_irradiance(
@@ -183,8 +183,8 @@ if st.button("Calculate Energy Generation"):
         try:
             cell_temperature = pvlib.temperature.sapm_cell(
                 poa_global=pd.Series(poa_irradiance.values, index=times),
-                temp_air=pd.Series(temp_air.values, index=times) if temp_air is not None else pd.Series(25, index=times),  # Default to 25°C if no data
-                wind_speed=pd.Series(wind_speed.values, index=times) if wind_speed is not None else pd.Series(1, index=times),  # Default to 1 m/s if no data
+                temp_air=pd.Series(temp_air.values, index=times),
+                wind_speed=pd.Series(wind_speed.values, index=times),
                 a=a,
                 b=b,
                 deltaT=deltaT
