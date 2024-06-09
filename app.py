@@ -21,7 +21,7 @@ def fetch_pvgis_data(latitude, longitude, start_date, end_date):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            data = pd.read_csv(StringIO(response.text), skiprows=8)
+            data = pd.read_csv(StringIO(response.text), skiprows=9)
             return data
         else:
             st.error(f"Error fetching PVGIS data: {response.status_code} - {response.text}")
@@ -84,7 +84,11 @@ if st.button("Calculate Energy Generation"):
 
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
-            pvgis_data['time'] = pd.to_datetime(pvgis_data['date'] + ':' + pvgis_data['time'], format='%Y%m%d:%H%M')
+            if 'time(UTC)' in pvgis_data.columns:
+                pvgis_data['time'] = pd.to_datetime(pvgis_data['time(UTC)'])
+            else:
+                raise ValueError("Timestamp column not found in PVGIS data.")
+            
             pvgis_data = pvgis_data.set_index('time')
             pvgis_data = pvgis_data[~pvgis_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
             pvgis_data = pvgis_data.tz_localize('Etc/GMT+0')
