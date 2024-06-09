@@ -80,7 +80,7 @@ if st.button("Calculate Energy Generation"):
 
         # Inspect data columns to find the timestamp column
         st.write("**Meteorological Data Columns**")
-        st.write(pvgis_data.head())
+        st.write(pvgis_data.columns)
 
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
@@ -104,25 +104,28 @@ if st.button("Calculate Energy Generation"):
         except Exception as e:
             st.error(f"Error reindexing data: {e}")
             st.stop()
-        
-        # Interpolate zero values
-        if 'G(i)' in pvgis_data.columns:
-            pvgis_data['G(i)'] = interpolate_zero_values(pvgis_data['G(i)'])
-        if 'Gb(i)' in pvgis_data.columns:
-            pvgis_data['Gb(i)'] = interpolate_zero_values(pvgis_data['Gb(i)'])
-        if 'Gd(i)' in pvgis_data.columns:
-            pvgis_data['Gd(i)'] = interpolate_zero_values(pvgis_data['Gd(i)'])
 
-        # Ensure all required columns are present
-        required_columns = ['G(i)', 'Gb(i)', 'Gd(i)']
-        for col in required_columns:
-            if col not in pvgis_data.columns:
-                st.error(f"Required column '{col}' is missing from the PVGIS data.")
-                st.stop()
+        # Display actual column names to identify correct ones
+        st.write("**PVGIS Data Columns**")
+        st.write(pvgis_data.columns)
+
+        # Assuming the correct column names from the actual data
+        ghi_col = 'G(i)'  # Global irradiance on the inclined plane
+        dni_col = 'Gb(i)'  # Direct normal irradiance on the inclined plane
+        dhi_col = 'Gd(i)'  # Diffuse horizontal irradiance on the inclined plane
+
+        if ghi_col not in pvgis_data.columns or dni_col not in pvgis_data.columns or dhi_col not in pvgis_data.columns:
+            st.error("Required irradiance data columns are missing from the PVGIS data.")
+            st.stop()
+
+        # Interpolate zero values
+        pvgis_data[ghi_col] = interpolate_zero_values(pvgis_data[ghi_col])
+        pvgis_data[dni_col] = interpolate_zero_values(pvgis_data[dni_col])
+        pvgis_data[dhi_col] = interpolate_zero_values(pvgis_data[dhi_col])
 
         # Check for remaining zero values
-        if (pvgis_data['G(i)'] == 0).all() or (pvgis_data['Gb(i)'] == 0).all() or (pvgis_data['Gd(i)'] == 0).all():
-            st.warning("Irradiance values (G(i), Gb(i), Gd(i)) contain zeros. This may affect the accuracy of the calculations.")
+        if (pvgis_data[ghi_col] == 0).all() or (pvgis_data[dni_col] == 0).all() or (pvgis_data[dhi_col] == 0).all():
+            st.warning(f"Irradiance values ({ghi_col}, {dni_col}, {dhi_col}) contain zeros. This may affect the accuracy of the calculations.")
             margin_of_error = 20  # Example margin of error in percentage
             st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
@@ -134,9 +137,9 @@ if st.button("Calculate Energy Generation"):
         solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
         # Get irradiance data
-        dni = pvgis_data['Gb(i)']
-        ghi = pvgis_data['G(i)']
-        dhi = pvgis_data['Gd(i)']
+        dni = pvgis_data[dni_col]
+        ghi = pvgis_data[ghi_col]
+        dhi = pvgis_data[dhi_col]
         temp_air = pvgis_data['T2m'] if 'T2m' in pvgis_data.columns else pd.Series(25, index=times)  # Default to 25°C if no data
         wind_speed = pvgis_data['WS10m'] if 'WS10m' in pvgis_data.columns else pd.Series(1, index=times)  # Default to 1 m/s if no data
         
