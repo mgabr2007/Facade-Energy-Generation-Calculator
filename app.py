@@ -1,30 +1,26 @@
 import streamlit as st
 import pvlib
 import pandas as pd
+import requests
 from datetime import datetime
 
-# Function to fetch TMY data from PVGIS
-def fetch_tmy_data(latitude, longitude):
-    try:
-        tmy_data = pvlib.iotools.get_pvgis_tmy(latitude, longitude)
-        return tmy_data[0]  # Return only the TMY data part
-    except Exception as e:
-        st.error(f"Error fetching TMY data from PVGIS: {e}")
-        return None
-
 # Function to fetch TMY data from NSRDB
-def fetch_nsrdb_data(latitude, longitude):
+def fetch_nsrdb_tmy(api_key, latitude, longitude):
+    url = (
+        f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-tmy-download.csv?"
+        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=2018&leap_day=false&interval=60&utc=false"
+    )
     try:
-        # Assuming that the NSRDB fetch function is similar to PVGIS
-        nsrdb_data = pvlib.iotools.get_pvgis_tmy(latitude, longitude)  # Replace with actual NSRDB function
-        return nsrdb_data[0]  # Return only the NSRDB data part
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = pd.read_csv(pd.compat.StringIO(response.text), skiprows=2)
+            return data
+        else:
+            st.error(f"Error fetching NSRDB data: {response.status_code}")
+            return None
     except Exception as e:
-        st.error(f"Error fetching data from NSRDB: {e}")
+        st.error(f"Error fetching NSRDB data: {e}")
         return None
-
-# Function to interpolate zero values
-def interpolate_zero_values(series):
-    return series.replace(0, pd.NA).interpolate(method='linear').fillna(0)
 
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
@@ -42,6 +38,7 @@ study_start_date = st.date_input("Study Start Date", value=datetime(2024, 6, 1),
 study_end_date = st.date_input("Study End Date", value=datetime(2024, 6, 30), help="The end date for the energy generation study.")
 facade_area = st.number_input("Facade Area (m²)", min_value=1.0, value=100.0, help="The area of the facade in square meters.")
 system_losses = st.number_input("System Losses (%)", min_value=0.0, max_value=100.0, value=15.0, help="Percentage of system losses including inverter efficiency, wiring losses, and other factors.")
+api_key = st.text_input("NSRDB API Key", help="Enter your NSRDB API key to fetch data.")
 
 # Retrieve and display available PV modules
 sam_data = pvlib.pvsystem.retrieve_sam('SandiaMod')
@@ -63,56 +60,56 @@ if st.button("Calculate Energy Generation"):
         # Generate time range
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
-        # Fetch TMY data from PVGIS
-        tmy_data = fetch_tmy_data(latitude, longitude)
-        if tmy_data is None:
-            # Fetch TMY data from NSRDB if PVGIS data is unavailable
-            tmy_data = fetch_nsrdb_data(latitude, longitude)
+        # Fetch TMY data from NSRDB
+        if api_key:
+            nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude)
+        else:
+            st.error("Please enter your NSRDB API key.")
 
-        if tmy_data is not None:
+        if nsrdb_data is not None:
             # Sort the index to ensure it is monotonic
-            tmy_data = tmy_data.sort_index()
+            nsrdb_data = nsrdb_data.sort_index()
 
-            # Align TMY data to the study period
-            tmy_data = tmy_data.reindex(times, method='nearest')
+            # Align NSRDB data to the study period
+            nsrdb_data = nsrdb_data.reindex(times, method='nearest')
             
             # Interpolate zero values
-            tmy_data['dni'] = interpolate_zero_values(tmy_data['dni'])
-            tmy_data['ghi'] = interpolate_zero_values(tmy_data['ghi'])
-            tmy_data['dhi'] = interpolate_zero_values(tmy_data['dhi'])
+            nsrdb_data['DNI'] = interpolate_zero_values(nsrdb_data['DNI'])
+            nsrdb_data['GHI'] = interpolate_zero_values(nsrdb_data['GHI'])
+            nsrdb_data['DHI'] = interpolate_zero_values(nsrdb_data['DHI'])
 
             # Check for remaining zero values
-            if (tmy_data['ghi'] == 0).all() or (tmy_data['dni'] == 0).all() or (tmy_data['dhi'] == 0).all():
+            if (nsrdb_data['GHI'] == 0).all() or (nsrdb_data['DNI'] == 0).all() or (nsrdb_data['DHI'] == 0).all():
                 st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
                 margin_of_error = 20  # Example margin of error in percentage
                 st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
-            # Debug: Ensure tmy_data index is sorted and aligned
-            st.write("**TMY Data Head**")
-            st.write("This table displays the head (first few rows) of the Typical Meteorological Year (TMY) data fetched from the PVGIS or NSRDB database. It provides an overview of the meteorological data for the specified location and study period, including parameters like direct normal irradiance (DNI), global horizontal irradiance (GHI), diffuse horizontal irradiance (DHI), ambient temperature (temp_air), and wind speed.")
-            st.write(tmy_data.head())
+            # Debug: Ensure nsrdb_data index is sorted and aligned
+            st.write("**NSRDB Data Head**")
+            st.write("This table displays the head (first few rows) of the Typical Meteorological Year (TMY) data fetched from the NSRDB database. It provides an overview of the meteorological data for the specified location and study period, including parameters like direct normal irradiance (DNI), global horizontal irradiance (GHI), diffuse horizontal irradiance (DHI), ambient temperature (temp_air), and wind speed.")
+            st.write(nsrdb_data.head())
 
             # Get solar position
             solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
-            # Get irradiance data from TMY
-            dni = tmy_data['dni']
-            ghi = tmy_data['ghi']
-            dhi = tmy_data['dhi']
-            temp_air = tmy_data['temp_air']
-            wind_speed = tmy_data['wind_speed']
+            # Get irradiance data from NSRDB
+            dni = nsrdb_data['DNI']
+            ghi = nsrdb_data['GHI']
+            dhi = nsrdb_data['DHI']
+            temp_air = nsrdb_data['Temperature']
+            wind_speed = nsrdb_data['Wind Speed']
             
             # Debug: Ensure inputs are Series with matching indices
             st.write("**DNI Head**")
-            st.write("This table shows the head of the Direct Normal Irradiance (DNI) values extracted from the TMY data. DNI represents the amount of solar radiation received per unit area by a surface that is always held perpendicular (or normal) to the rays that come directly from the sun. It's crucial for calculating the irradiance on the facade.")
+            st.write("This table shows the head of the Direct Normal Irradiance (DNI) values extracted from the NSRDB data. DNI represents the amount of solar radiation received per unit area by a surface that is always held perpendicular (or normal) to the rays that come directly from the sun. It's crucial for calculating the irradiance on the facade.")
             st.write(dni.head())
 
             st.write("**Temp Air Head**")
-            st.write("This table presents the head of the ambient temperature values (temp_air) from the TMY data. Ambient temperature is used to calculate the cell temperature of the PV modules, which affects their efficiency and power output.")
+            st.write("This table presents the head of the ambient temperature values (Temperature) from the NSRDB data. Ambient temperature is used to calculate the cell temperature of the PV modules, which affects their efficiency and power output.")
             st.write(temp_air.head())
 
             st.write("**Wind Speed Head**")
-            st.write("This table displays the head of the wind speed values from the TMY data. Wind speed is also used in calculating the cell temperature. Higher wind speeds can help cool the PV modules, potentially increasing their efficiency.")
+            st.write("This table displays the head of the wind speed values from the NSRDB data. Wind speed is also used in calculating the cell temperature. Higher wind speeds can help cool the PV modules, potentially increasing their efficiency.")
             st.write(wind_speed.head())
 
             # Calculate irradiance on the facade
