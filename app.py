@@ -148,7 +148,6 @@ if st.button("Calculate Energy Generation"):
 
             # Debug: Check irradiance values
             st.write("**Irradiance Head**")
-            st.write("This table shows the head of the irradiance values calculated on the facade. It includes components like direct, diffuse, and global irradiance on the plane of the array (POA). These values are critical for determining
             st.write("This table shows the head of the irradiance values calculated on the facade. It includes components like direct, diffuse, and global irradiance on the plane of the array (POA). These values are critical for determining the total solar energy incident on the facade.")
             st.write(irradiance.head())
 
