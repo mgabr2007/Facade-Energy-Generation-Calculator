@@ -137,7 +137,7 @@ if st.button("Calculate Energy Generation"):
             if 'time' in nsrdb_data.columns:
                 nsrdb_data['time'] = pd.to_datetime(nsrdb_data['time'])
             elif 'date' in nsrdb_data.columns:
-                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['date'] + ' ' + nsrdb_data['time'], format='%Y%m%d:%H%M')
+                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['date'] + ':' + nsrdb_data['time'], format='%Y%m%d:%H%M')
             nsrdb_data = nsrdb_data.set_index('time')
             nsrdb_data = nsrdb_data[~nsrdb_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
             nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
