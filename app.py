@@ -9,42 +9,6 @@ from io import StringIO
 PVGIS_START_YEAR = 2005
 PVGIS_END_YEAR = 2020
 
-# Function to check NSRDB data availability
-def check_nsrdb_data_availability(api_key, latitude, longitude):
-    url = (
-        f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-availability.json?"
-        f"api_key={api_key}&lat={latitude}&lon={longitude}"
-    )
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('available', False)
-        else:
-            return False
-    except Exception as e:
-        st.error(f"Error checking NSRDB data availability: {e}")
-        return False
-
-# Function to fetch TMY data from NSRDB
-def fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation):
-    url = (
-        f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-tmy-download.csv?"
-        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=tmy-2018&leap_day=false&interval=60&utc=false"
-        f"&full_name={full_name}&email={email}&affiliation={affiliation}&mailing_list=false&wkt=POINT({longitude}%20{latitude})"
-    )
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = pd.read_csv(StringIO(response.text), skiprows=2)
-            return data
-        else:
-            st.error(f"Error fetching NSRDB data: {response.status_code} - {response.text}")
-            return None
-    except Exception as e:
-        st.error(f"Error fetching NSRDB data: {e}")
-        return None
-
 # Function to fetch data from PVGIS
 def fetch_pvgis_data(latitude, longitude, start_date, end_date):
     start_year = max(start_date.year, PVGIS_START_YEAR)
@@ -86,10 +50,6 @@ study_start_date = st.date_input("Study Start Date", value=datetime(2024, 6, 1),
 study_end_date = st.date_input("Study End Date", value=datetime(2024, 6, 30), help="The end date for the energy generation study.")
 facade_area = st.number_input("Facade Area (m²)", min_value=1.0, value=100.0, help="The area of the facade in square meters.")
 system_losses = st.number_input("System Losses (%)", min_value=0.0, max_value=100.0, value=15.0, help="Percentage of system losses including inverter efficiency, wiring losses, and other factors.")
-api_key = st.text_input("NSRDB API Key", help="Enter your NSRDB API key to fetch data.")
-full_name = st.text_input("Full Name", help="Enter your full name for the NSRDB API request.")
-email = st.text_input("Email", help="Enter a valid email address for the NSRDB API request.")
-affiliation = st.text_input("Affiliation", help="Enter your affiliation for the NSRDB API request.")
 
 # Retrieve and display available PV modules
 sam_data = pvlib.pvsystem.retrieve_sam('SandiaMod')
@@ -111,79 +71,66 @@ if st.button("Calculate Energy Generation"):
         # Generate time range
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
-        # Check NSRDB data availability
-        nsrdb_data = None
-        if api_key and full_name and email and affiliation:
-            data_available = check_nsrdb_data_availability(api_key, latitude, longitude)
-            if not data_available:
-                st.warning("NSRDB data is not available for the provided location. Attempting to use PVGIS data.")
-                nsrdb_data = fetch_pvgis_data(latitude, longitude, study_start_date, study_end_date)
-            else:
-                nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation)
-        else:
-            st.warning("Please enter your NSRDB API key, full name, email, and affiliation. Attempting to use PVGIS data.")
-            nsrdb_data = fetch_pvgis_data(latitude, longitude, study_start_date, study_end_date)
+        # Fetch PVGIS data
+        pvgis_data = fetch_pvgis_data(latitude, longitude, study_start_date, study_end_date)
 
-        if nsrdb_data is None:
+        if pvgis_data is None:
             st.error("Unable to fetch sufficient data from available sources.")
             st.stop()
 
         # Inspect data columns to find the timestamp column
         st.write("**Meteorological Data Columns**")
-        st.write(nsrdb_data.columns)
+        st.write(pvgis_data.columns)
 
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
-            if 'time' in nsrdb_data.columns:
-                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['time'])
-            elif 'date' in nsrdb_data.columns:
-                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['date'] + ':' + nsrdb_data['time'], format='%Y%m%d:%H%M')
-            nsrdb_data = nsrdb_data.set_index('time')
-            nsrdb_data = nsrdb_data[~nsrdb_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
-            nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
+            pvgis_data['time'] = pd.to_datetime(pvgis_data['date'] + ':' + pvgis_data['time'], format='%Y%m%d:%H%M')
+            pvgis_data = pvgis_data.set_index('time')
+            pvgis_data = pvgis_data[~pvgis_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
+            pvgis_data = pvgis_data.tz_localize('Etc/GMT+0')
         except Exception as e:
             st.error(f"Error processing time data: {e}")
             st.stop()
 
         # Sort the index to ensure it is monotonic
-        nsrdb_data = nsrdb_data.sort_index()
+        pvgis_data = pvgis_data.sort_index()
 
         # Align data to the study period
         try:
-            nsrdb_data = nsrdb_data.reindex(times, method='nearest')
+            pvgis_data = pvgis_data.reindex(times, method='nearest')
         except Exception as e:
             st.error(f"Error reindexing data: {e}")
             st.stop()
         
         # Interpolate zero values
-        if 'DNI' in nsrdb_data.columns:
-            nsrdb_data['DNI'] = interpolate_zero_values(nsrdb_data['DNI'])
-        if 'GHI' in nsrdb_data.columns:
-            nsrdb_data['GHI'] = interpolate_zero_values(nsrdb_data['GHI'])
-        if 'DHI' in nsrdb_data.columns:
-            nsrdb_data['DHI'] = interpolate_zero_values(nsrdb_data['DHI'])
+        if 'DNI' in pvgis_data.columns:
+            pvgis_data['DNI'] = interpolate_zero_values(pvgis_data['DNI'])
+        if 'GHI' in pvgis_data.columns:
+            pvgis_data['GHI'] = interpolate_zero_values(pvgis_data['GHI'])
+        if 'DHI' in pvgis_data.columns:
+            pvgis_data['DHI'] = interpolate_zero_values(pvgis_data['DHI'])
 
         # Check for remaining zero values
-        if ('GHI' in nsrdb_data.columns and (nsrdb_data['GHI'] == 0).all()) or \
-           ('DNI' in nsrdb_data.columns and (nsrdb_data['DNI'] == 0).all()) or \
-           ('DHI' in nsrdb_data.columns and (nsrdb_data['DHI'] == 0).all()):
+        if ('GHI' in pvgis_data.columns and (pvgis_data['GHI'] == 0).all()) or \
+           ('DNI' in pvgis_data.columns and (pvgis_data['DNI'] == 0).all()) or \
+           ('DHI' in pvgis_data.columns and (pvgis_data['DHI'] == 0).all()):
             st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
             margin_of_error = 20  # Example margin of error in percentage
             st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
         # Debug: Ensure data index is sorted and aligned
         st.write("**Meteorological Data Head**")
-        st.write(nsrdb_data.head())
+        st.write(pvgis_data.head())
 
         # Get solar position
         solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
         # Get irradiance data
-        dni = nsrdb_data['DNI'] if 'DNI' in nsrdb_data.columns else None
-        ghi = nsrdb_data['GHI'] if 'GHI' in nsrdb_data.columns else None
-        dhi = nsrdb_data['DHI'] if 'DHI' in nsrdb_data.columns else None
-        temp_air = nsrdb_data['Temperature'] if 'Temperature' in nsrdb_data.columns else None
-        wind_speed = nsrdb_data['Wind Speed'] if 'Wind Speed' in nsrdb_data.columns else None
+        dni = pvgis_data['DNI'] if 'DNI' in pvgis_data.columns else None
+        ghi = pvgis_data['GHI'] if 'GHI' in pvgis_data.columns else None
+        dhi = pvgis_data['DHI'] if 'DHI' in pvgis_data.columns else None
+        temp_air = pvgis_data['Temperature'] if 'Temperature' in pvgis_data.columns else None
+        wind_speed = pvgis_data['Wind Speed'] if 'Wind Speed' in pvgis_data.columns else None
         
         # Debug: Ensure inputs are Series with matching indices
         if dni is not None:
