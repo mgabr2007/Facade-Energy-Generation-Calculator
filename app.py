@@ -59,7 +59,9 @@ if st.button("Calculate Energy Generation"):
             tmy_data = tmy_data.reindex(times, method='nearest')
             
             # Debug: Ensure tmy_data index is sorted and aligned
-            st.write("TMY Data Head", tmy_data.head())
+            st.write("**TMY Data Head**")
+            st.write("This table displays the head (first few rows) of the Typical Meteorological Year (TMY) data fetched from the PVGIS database. It provides an overview of the meteorological data for the specified location and study period, including parameters like direct normal irradiance (DNI), global horizontal irradiance (GHI), diffuse horizontal irradiance (DHI), ambient temperature (temp_air), and wind speed.")
+            st.write(tmy_data.head())
 
             # Get solar position
             solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
@@ -72,9 +74,17 @@ if st.button("Calculate Energy Generation"):
             wind_speed = tmy_data['wind_speed']
 
             # Debug: Ensure inputs are Series with matching indices
-            st.write("DNI Head", dni.head())
-            st.write("Temp Air Head", temp_air.head())
-            st.write("Wind Speed Head", wind_speed.head())
+            st.write("**DNI Head**")
+            st.write("This table shows the head of the Direct Normal Irradiance (DNI) values extracted from the TMY data. DNI represents the amount of solar radiation received per unit area by a surface that is always held perpendicular (or normal) to the rays that come directly from the sun. It's crucial for calculating the irradiance on the facade.")
+            st.write(dni.head())
+
+            st.write("**Temp Air Head**")
+            st.write("This table presents the head of the ambient temperature values (temp_air) from the TMY data. Ambient temperature is used to calculate the cell temperature of the PV modules, which affects their efficiency and power output.")
+            st.write(temp_air.head())
+
+            st.write("**Wind Speed Head**")
+            st.write("This table displays the head of the wind speed values from the TMY data. Wind speed is also used in calculating the cell temperature. Higher wind speeds can help cool the PV modules, potentially increasing their efficiency.")
+            st.write(wind_speed.head())
 
             # Calculate irradiance on the facade
             irradiance = pvlib.irradiance.get_total_irradiance(
@@ -88,13 +98,17 @@ if st.button("Calculate Energy Generation"):
             )
 
             # Debug: Check irradiance values
-            st.write("Irradiance Head", irradiance.head())
+            st.write("**Irradiance Head**")
+            st.write("This table shows the head of the irradiance values calculated on the facade. It includes components like direct, diffuse, and global irradiance on the plane of the array (POA). These values are critical for determining the total solar energy incident on the facade.")
+            st.write(irradiance.head())
 
             # Ensure inputs are compatible for cell temperature calculation
             poa_irradiance = irradiance['poa_global']
 
             # Debug: Check poa_irradiance values
-            st.write("POA Irradiance Head", poa_irradiance.head())
+            st.write("**POA Irradiance Head**")
+            st.write("This table presents the head of the Plane of Array (POA) irradiance values. POA irradiance is the total irradiance received by the tilted surface (the facade in this case). It combines direct, diffuse, and reflected irradiance components and is used to calculate the energy production of the PV modules.")
+            st.write(poa_irradiance.head())
 
             # Parameters for the Sandia Cell Temperature Model
             a = -3.47  # Default parameter
@@ -116,7 +130,9 @@ if st.button("Calculate Energy Generation"):
                 st.stop()
 
             # Debug: Check cell temperature values
-            st.write("Cell Temperature Head", cell_temperature.head())
+            st.write("**Cell Temperature Head**")
+            st.write("This table displays the head of the cell temperature values calculated using the Sandia temperature model. Cell temperature significantly affects the performance and efficiency of PV modules. This table helps verify that the temperature calculations are correctly applied.")
+            st.write(cell_temperature.head())
 
             # Calculate the DC power output
             try:
@@ -127,7 +143,9 @@ if st.button("Calculate Energy Generation"):
                 st.stop()
 
             # Debug: Check DC power values
-            st.write("DC Power Head", dc_power_output.head())
+            st.write("**DC Power Head**")
+            st.write("This table shows the head of the DC power output calculated by the PV modules. It represents the maximum power point (p_mp) of the PV modules.")
+            st.write(dc_power_output.head())
 
             # Convert DC power to AC power using Sandia inverter model
             try:
@@ -137,7 +155,9 @@ if st.button("Calculate Energy Generation"):
                 st.stop()
 
             # Debug: Check AC power values
-            st.write("AC Power Head", ac_power.head())
+            st.write("**AC Power Head**")
+            st.write("This table displays the head of the AC power output calculated using the Sandia inverter model. It represents the actual usable power after conversion from DC to AC.")
+            st.write(ac_power.head())
 
             # Calculate total energy generated by the facade (Wh)
             energy_generated = ac_power.sum() * facade_area
