@@ -134,9 +134,12 @@ if st.button("Calculate Energy Generation"):
             st.write("This table displays the head of the cell temperature values calculated using the Sandia temperature model. Cell temperature significantly affects the performance and efficiency of PV modules. This table helps verify that the temperature calculations are correctly applied.")
             st.write(cell_temperature.head())
 
+            # Create PV system with selected module
+            pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module)
+
             # Calculate the DC power output
             try:
-                dc_power = selected_pv_module.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
+                dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
                 dc_power_output = dc_power['p_mp']
             except Exception as e:
                 st.error(f"Error calculating DC power: {e}")
