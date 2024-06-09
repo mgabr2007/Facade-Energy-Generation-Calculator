@@ -81,7 +81,7 @@ if st.button("Calculate Energy Generation"):
             poa_irradiance = irradiance['poa_global']
 
             # Calculate the cell temperature using the Sandia method
-            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance, temp_air=temp_air, wind_speed=wind_speed)
+            cell_temperature = pvlib.temperature.sapm_cell(poa_global=poa_irradiance.values, temp_air=temp_air.values, wind_speed=wind_speed.values)
 
             # Calculate the DC power output
             dc_power = pv_system.sapm(poa_irradiance, cell_temperature)['p_mp']
