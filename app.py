@@ -5,6 +5,10 @@ import requests
 from datetime import datetime
 from io import StringIO
 
+# Constants for PVGIS API
+PVGIS_START_YEAR = 2005
+PVGIS_END_YEAR = 2020
+
 # Function to check NSRDB data availability
 def check_nsrdb_data_availability(api_key, latitude, longitude):
     url = (
@@ -43,9 +47,12 @@ def fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation)
 
 # Function to fetch data from PVGIS
 def fetch_pvgis_data(latitude, longitude, start_date, end_date):
+    start_year = max(start_date.year, PVGIS_START_YEAR)
+    end_year = min(end_date.year, PVGIS_END_YEAR)
+    
     url = (
         f"https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?"
-        f"lat={latitude}&lon={longitude}&startyear={start_date.year}&endyear={end_date.year}&outputformat=csv"
+        f"lat={latitude}&lon={longitude}&startyear={start_year}&endyear={end_year}&outputformat=csv"
     )
     try:
         response = requests.get(url)
