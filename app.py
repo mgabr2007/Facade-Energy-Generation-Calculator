@@ -94,12 +94,20 @@ if st.button("Calculate Energy Generation"):
             # Debug: Check poa_irradiance values
             st.write("POA Irradiance Head", poa_irradiance.head())
 
+            # Parameters for the Sandia Cell Temperature Model
+            a = -3.47  # Default parameter
+            b = -0.0594  # Default parameter
+            deltaT = 3  # Default parameter
+
             # Calculate the cell temperature using the Sandia method
             try:
                 cell_temperature = pvlib.temperature.sapm_cell(
                     poa_global=pd.Series(poa_irradiance.values, index=times),
                     temp_air=pd.Series(temp_air.values, index=times),
-                    wind_speed=pd.Series(wind_speed.values, index=times)
+                    wind_speed=pd.Series(wind_speed.values, index=times),
+                    a=a,
+                    b=b,
+                    deltaT=deltaT
                 )
             except Exception as e:
                 st.error(f"Error calculating cell temperature: {e}")
