@@ -53,11 +53,11 @@ if st.button("Calculate Energy Generation"):
             solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
             # Get irradiance data from TMY
-            dni = tmy_data['dni']
-            ghi = tmy_data['ghi']
-            dhi = tmy_data['dhi']
-            temp_air = tmy_data['temp_air']
-            wind_speed = tmy_data['wind_speed']
+            dni = tmy_data['dni'].reindex(times)
+            ghi = tmy_data['ghi'].reindex(times)
+            dhi = tmy_data['dhi'].reindex(times)
+            temp_air = tmy_data['temp_air'].reindex(times)
+            wind_speed = tmy_data['wind_speed'].reindex(times)
 
             # Calculate irradiance on the facade
             irradiance = pvlib.irradiance.get_total_irradiance(
