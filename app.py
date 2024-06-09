@@ -21,7 +21,7 @@ def fetch_pvgis_data(latitude, longitude, start_date, end_date):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            data = pd.read_csv(StringIO(response.text), skiprows=10)  # Adjusted skiprows
+            data = pd.read_csv(StringIO(response.text), skiprows=10)
             return data
         else:
             st.error(f"Error fetching PVGIS data: {response.status_code} - {response.text}")
@@ -57,12 +57,6 @@ available_modules = list(sam_data.keys())
 module_name = st.selectbox("Select PV Module", available_modules, help="Select the PV module from the available list.")
 selected_pv_module = sam_data[module_name]
 
-# Retrieve and display available inverters
-inverter_data = pvlib.pvsystem.retrieve_sam('CECInverter')
-available_inverters = list(inverter_data.keys())
-inverter_name = st.selectbox("Select Inverter", available_inverters, help="Select the inverter from the available list.")
-selected_inverter = inverter_data[inverter_name]
-
 if st.button("Calculate Energy Generation"):
     # Validate input dates
     if study_start_date >= study_end_date:
@@ -76,33 +70,6 @@ if st.button("Calculate Energy Generation"):
 
         if pvgis_data is None:
             st.error("Unable to fetch sufficient data from available sources.")
-            st.stop()
-
-        # Inspect data columns to find the timestamp column
-        st.write("**Meteorological Data Columns**")
-        st.write(pvgis_data.columns)
-
-        # Ensure the timestamp column is converted to datetime and set as the index
-        try:
-            # Assuming the first column is the timestamp column
-            timestamp_column = pvgis_data.columns[0]
-            pvgis_data['time'] = pd.to_datetime(pvgis_data[timestamp_column], format='%Y%m%d:%H%M', errors='coerce')
-            pvgis_data = pvgis_data.dropna(subset=['time'])  # Drop rows where 'time' could not be parsed
-            pvgis_data = pvgis_data.set_index('time')
-            pvgis_data = pvgis_data[~pvgis_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
-            pvgis_data = pvgis_data.tz_localize('Etc/GMT+0')
-        except Exception as e:
-            st.error(f"Error processing time data: {e}")
-            st.stop()
-
-        # Sort the index to ensure it is monotonic
-        pvgis_data = pvgis_data.sort_index()
-
-        # Align data to the study period
-        try:
-            pvgis_data = pvgis_data.reindex(times, method='nearest')
-        except Exception as e:
-            st.error(f"Error reindexing data: {e}")
             st.stop()
 
         # Display actual column names to identify correct ones
@@ -129,19 +96,32 @@ if st.button("Calculate Energy Generation"):
             margin_of_error = 20  # Example margin of error in percentage
             st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
-        # Debug: Ensure data index is sorted and aligned
-        st.write("**Meteorological Data Head**")
-        st.write(pvgis_data.head())
+        # Ensure the timestamp column is converted to datetime and set as the index
+        try:
+            timestamp_column = pvgis_data.columns[0]
+            pvgis_data['time'] = pd.to_datetime(pvgis_data[timestamp_column], format='%Y%m%d:%H%M', errors='coerce')
+            pvgis_data = pvgis_data.dropna(subset=['time'])  # Drop rows where 'time' could not be parsed
+            pvgis_data = pvgis_data.set_index('time')
+            pvgis_data = pvgis_data[~pvgis_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
+            pvgis_data = pvgis_data.tz_localize('Etc/GMT+0')
+        except Exception as e:
+            st.error(f"Error processing time data: {e}")
+            st.stop()
 
-        # Get solar position
-        solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
+        # Sort the index to ensure it is monotonic
+        pvgis_data = pvgis_data.sort_index()
 
+        # Align data to the study period
+        try:
+            pvgis_data = pvgis_data.reindex(times, method='nearest')
+        except Exception as e:
+            st.error(f"Error reindexing data: {e}")
+            st.stop()
+        
         # Get irradiance data
         dni = pvgis_data[dni_col]
         ghi = pvgis_data[ghi_col]
         dhi = pvgis_data[dhi_col]
-        temp_air = pvgis_data['T2m'] if 'T2m' in pvgis_data.columns else pd.Series(25, index=times)  # Default to 25°C if no data
-        wind_speed = pvgis_data['WS10m'] if 'WS10m' in pvgis_data.columns else pd.Series(1, index=times)  # Default to 1 m/s if no data
         
         # Debug: Ensure inputs are Series with matching indices
         st.write("**DNI Head**")
@@ -150,13 +130,10 @@ if st.button("Calculate Energy Generation"):
         st.write(ghi.head())
         st.write("**DHI Head**")
         st.write(dhi.head())
-        st.write("**Temperature Head**")
-        st.write(temp_air.head())
-        st.write("**Wind Speed Head**")
-        st.write(wind_speed.head())
 
-        # Calculate irradiance on the facade
-        irradiance = pvlib.irradiance.get_total_irradiance(
+        # Calculate total irradiance on the facade
+        solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
+        poa_irradiance = pvlib.irradiance.get_total_irradiance(
             surface_tilt=90,
             surface_azimuth=facade_azimuth,
             solar_zenith=solar_position['apparent_zenith'],
@@ -166,76 +143,20 @@ if st.button("Calculate Energy Generation"):
             dhi=dhi
         )
 
-        # Debug: Check irradiance values
-        st.write("**Irradiance Head**")
-        st.write(irradiance.head())
-
-        # Ensure inputs are compatible for cell temperature calculation
-        poa_irradiance = irradiance['poa_global']
-
-        # Debug: Check poa_irradiance values
         st.write("**POA Irradiance Head**")
         st.write(poa_irradiance.head())
 
-        # Parameters for the Sandia Cell Temperature Model
-        a = -3.47  # Default parameter
-        b = -0.0594  # Default parameter
-        deltaT = 3  # Default parameter
+        # Sum the plane of array irradiance
+        total_poa_irradiance = poa_irradiance['poa_global'].sum()
 
-        # Calculate the cell temperature using the Sandia method
-        try:
-            cell_temperature = pvlib.temperature.sapm_cell(
-                poa_global=pd.Series(poa_irradiance.values, index=times),
-                temp_air=pd.Series(temp_air.values, index=times),
-                wind_speed=pd.Series(wind_speed.values, index=times),
-                a=a,
-                b=b,
-                deltaT=deltaT
-            )
-        except Exception as e:
-            st.error(f"Error calculating cell temperature: {e}")
-            st.stop()
-
-        # Debug: Check cell temperature values
-        st.write("**Cell Temperature Head**")
-        st.write(cell_temperature.head())
-
-        # Create PV system with selected module
-        pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module, inverter_parameters=selected_inverter)
-
-        # Calculate the DC power output
-        try:
-            dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
-            dc_power_output = dc_power['p_mp']
-        except Exception as e:
-            st.error(f"Error calculating DC power: {e}")
-            st.stop()
-
-        # Debug: Check DC power values
-        st.write("**DC Power Head**")
-        st.write(dc_power_output.head())
-
-        # Convert DC power to AC power using Sandia inverter model
-        try:
-            ac_power = pvlib.inverter.sandia(dc_power_output, selected_inverter)
-        except Exception as e:
-            st.error(f"Error calculating AC power: {e}")
-            st.stop()
-
-        # Debug: Check AC power values
-        st.write("**AC Power Head**")
-        st.write(ac_power.head())
-
-        # Calculate total energy generated by the facade (Wh)
-        energy_generated = ac_power.sum() * facade_area
+        # Assume a simplified model where energy is proportional to irradiance
+        # Calculate energy generated (Wh)
+        energy_generated = total_poa_irradiance * facade_area / 1000  # Convert to kWh
 
         # Apply system losses
         effective_energy_generated = energy_generated * (1 - system_losses / 100)
 
-        # Convert to kWh
-        energy_generated_kWh = effective_energy_generated / 1000
-
-        st.success(f"Total energy generated by the facade from {study_start_date} to {study_end_date}: {energy_generated_kWh:.2f} kWh")
+        st.success(f"Total energy generated by the facade from {study_start_date} to {study_end_date}: {effective_energy_generated:.2f} kWh")
 
         # Provide feedback on data needs
-        st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI, ambient temperature, and wind speed. Using site-specific data rather than generic data can improve accuracy.")
+        st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI. Using site-specific data rather than generic data can improve accuracy.")
