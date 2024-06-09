@@ -81,6 +81,7 @@ if st.button("Calculate Energy Generation"):
             try:
                 nsrdb_data['time'] = pd.to_datetime(nsrdb_data[['Year', 'Month', 'Day', 'Hour']])
                 nsrdb_data = nsrdb_data.set_index('time')
+                nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
             except Exception as e:
                 st.error(f"Error processing NSRDB time data: {e}")
                 st.stop()
