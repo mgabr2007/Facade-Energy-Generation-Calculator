@@ -15,7 +15,7 @@ def check_nsrdb_data_availability(api_key, latitude, longitude):
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            return data.get('available')
+            return data.get('available', False)
         else:
             return False
     except Exception as e:
