@@ -77,9 +77,16 @@ if st.button("Calculate Energy Generation"):
             nsrdb_data = None
 
         if nsrdb_data is not None:
-            # Ensure the 'Unnamed: 0' column is converted to datetime and set as the index
+            # Inspect data columns to find the timestamp column
+            st.write("**NSRDB Data Columns**")
+            st.write(nsrdb_data.columns)
+
+            # Assuming the first column is the timestamp column
+            timestamp_column = nsrdb_data.columns[0]
+
+            # Ensure the timestamp column is converted to datetime and set as the index
             try:
-                nsrdb_data['time'] = pd.to_datetime(nsrdb_data['Unnamed: 0'])
+                nsrdb_data['time'] = pd.to_datetime(nsrdb_data[timestamp_column])
                 nsrdb_data = nsrdb_data.set_index('time')
                 nsrdb_data = nsrdb_data.tz_localize('Etc/GMT+0')
             except Exception as e:
@@ -226,3 +233,4 @@ if st.button("Calculate Energy Generation"):
             st.info("For more accurate calculations, ensure the following data is accurate and up-to-date: DNI, GHI, DHI, ambient temperature, and wind speed. Using site-specific data rather than generic TMY data can improve accuracy.")
         else:
             st.error("Unable to fetch sufficient data from available sources.")
+
