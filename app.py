@@ -77,11 +77,23 @@ if st.button("Calculate Energy Generation"):
             nsrdb_data = None
 
         if nsrdb_data is not None:
+            # Ensure the 'time' column is converted to datetime and set as the index
+            try:
+                nsrdb_data['time'] = pd.to_datetime(nsrdb_data[['Year', 'Month', 'Day', 'Hour']])
+                nsrdb_data = nsrdb_data.set_index('time')
+            except Exception as e:
+                st.error(f"Error processing NSRDB time data: {e}")
+                st.stop()
+
             # Sort the index to ensure it is monotonic
             nsrdb_data = nsrdb_data.sort_index()
 
             # Align NSRDB data to the study period
-            nsrdb_data = nsrdb_data.reindex(times, method='nearest')
+            try:
+                nsrdb_data = nsrdb_data.reindex(times, method='nearest')
+            except Exception as e:
+                st.error(f"Error reindexing NSRDB data: {e}")
+                st.stop()
             
             # Interpolate zero values
             nsrdb_data['DNI'] = interpolate_zero_values(nsrdb_data['DNI'])
