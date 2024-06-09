@@ -44,8 +44,12 @@ if uploaded_file is not None:
         facade_area = st.number_input("Facade Area (m²)", min_value=1.0, value=100.0)
         system_losses = st.number_input("System Losses (%)", min_value=0.0, max_value=100.0, value=15.0)
 
-        # Calculate total irradiance on the facade (using direct normal irradiance as an example)
-        poa_irradiance = pvgis_tmy_data["Gb(n)"].fillna(0).sum()  # Sum of direct normal irradiance
+        # Verify irradiance data
+        st.write("**Irradiance Data Sample**")
+        st.write(pvgis_tmy_data[['G(h)', 'Gb(n)', 'Gd(h)']].head(20))
+
+        # Calculate total irradiance on the facade (using global horizontal irradiance as an example)
+        poa_irradiance = pvgis_tmy_data["G(h)"].fillna(0).sum()  # Sum of global horizontal irradiance
 
         # Calculate energy generated (Wh)
         energy_generated = poa_irradiance * facade_area / 1000  # Convert to kWh
