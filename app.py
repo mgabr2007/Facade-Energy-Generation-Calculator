@@ -73,6 +73,10 @@ if st.button("Calculate Energy Generation"):
             temp_air = tmy_data['temp_air']
             wind_speed = tmy_data['wind_speed']
 
+            # Check for zero values in irradiance
+            if (ghi == 0).all() or (dni == 0).all() or (dhi == 0).all():
+                st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
+            
             # Debug: Ensure inputs are Series with matching indices
             st.write("**DNI Head**")
             st.write("This table shows the head of the Direct Normal Irradiance (DNI) values extracted from the TMY data. DNI represents the amount of solar radiation received per unit area by a surface that is always held perpendicular (or normal) to the rays that come directly from the sun. It's crucial for calculating the irradiance on the facade.")
