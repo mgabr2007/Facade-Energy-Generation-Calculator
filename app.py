@@ -135,7 +135,7 @@ if st.button("Calculate Energy Generation"):
             st.write(cell_temperature.head())
 
             # Create PV system with selected module
-            pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module)
+            pv_system = pvlib.pvsystem.PVSystem(module_parameters=selected_pv_module, inverter_parameters=selected_inverter)
 
             # Calculate the DC power output
             try:
