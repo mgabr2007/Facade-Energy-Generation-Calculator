@@ -22,19 +22,9 @@ def fetch_nsrdb_data(latitude, longitude):
         st.error(f"Error fetching data from NSRDB: {e}")
         return None
 
-# Function to check data completeness
-def check_data_completeness(data):
-    missing_components = []
-    if (data['ghi'] == 0).all():
-        missing_components.append('GHI')
-    if (data['dni'] == 0).all():
-        missing_components.append('DNI')
-    if (data['dhi'] == 0).all():
-        missing_components.append('DHI')
-    if not missing_components:
-        return True, None
-    else:
-        return False, missing_components
+# Function to interpolate zero values
+def interpolate_zero_values(series):
+    return series.replace(0, pd.NA).interpolate(method='linear').fillna(0)
 
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
@@ -86,12 +76,17 @@ if st.button("Calculate Energy Generation"):
             # Align TMY data to the study period
             tmy_data = tmy_data.reindex(times, method='nearest')
             
-            # Check data completeness
-            is_complete, missing_components = check_data_completeness(tmy_data)
-            if not is_complete:
-                st.error(f"Missing data components: {', '.join(missing_components)}")
-                st.stop()
-            
+            # Interpolate zero values
+            tmy_data['dni'] = interpolate_zero_values(tmy_data['dni'])
+            tmy_data['ghi'] = interpolate_zero_values(tmy_data['ghi'])
+            tmy_data['dhi'] = interpolate_zero_values(tmy_data['dhi'])
+
+            # Check for remaining zero values
+            if (tmy_data['ghi'] == 0).all() or (tmy_data['dni'] == 0).all() or (tmy_data['dhi'] == 0).all():
+                st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
+                margin_of_error = 20  # Example margin of error in percentage
+                st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
+
             # Debug: Ensure tmy_data index is sorted and aligned
             st.write("**TMY Data Head**")
             st.write("This table displays the head (first few rows) of the Typical Meteorological Year (TMY) data fetched from the PVGIS or NSRDB database. It provides an overview of the meteorological data for the specified location and study period, including parameters like direct normal irradiance (DNI), global horizontal irradiance (GHI), diffuse horizontal irradiance (DHI), ambient temperature (temp_air), and wind speed.")
