@@ -87,6 +87,7 @@ if st.button("Calculate Energy Generation"):
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
         # Check NSRDB data availability
+        nsrdb_data = None
         if api_key and full_name and email and affiliation:
             data_available = check_nsrdb_data_availability(api_key, latitude, longitude)
             if not data_available:
@@ -95,7 +96,6 @@ if st.button("Calculate Energy Generation"):
                 nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation)
         else:
             st.error("Please enter your NSRDB API key, full name, email, and affiliation.")
-            nsrdb_data = None
 
         if nsrdb_data is None:
             st.stop()
