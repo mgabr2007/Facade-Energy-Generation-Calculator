@@ -6,11 +6,11 @@ from datetime import datetime
 from io import StringIO
 
 # Function to fetch TMY data from NSRDB
-def fetch_nsrdb_tmy(api_key, latitude, longitude):
+def fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation):
     url = (
         f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-tmy-download.csv?"
         f"api_key={api_key}&lat={latitude}&lon={longitude}&names=tmy-2018&leap_day=false&interval=60&utc=false"
-        f"&full_name=YourName&email=youremail@example.com&affiliation=YourAffiliation&mailing_list=false&wkt=POINT({longitude}%20{latitude})"
+        f"&full_name={full_name}&email={email}&affiliation={affiliation}&mailing_list=false&wkt=POINT({longitude}%20{latitude})"
     )
     try:
         response = requests.get(url)
@@ -45,6 +45,9 @@ study_end_date = st.date_input("Study End Date", value=datetime(2024, 6, 30), he
 facade_area = st.number_input("Facade Area (m²)", min_value=1.0, value=100.0, help="The area of the facade in square meters.")
 system_losses = st.number_input("System Losses (%)", min_value=0.0, max_value=100.0, value=15.0, help="Percentage of system losses including inverter efficiency, wiring losses, and other factors.")
 api_key = st.text_input("NSRDB API Key", help="Enter your NSRDB API key to fetch data.")
+full_name = st.text_input("Full Name", help="Enter your full name for the NSRDB API request.")
+email = st.text_input("Email", help="Enter a valid email address for the NSRDB API request.")
+affiliation = st.text_input("Affiliation", help="Enter your affiliation for the NSRDB API request.")
 
 # Retrieve and display available PV modules
 sam_data = pvlib.pvsystem.retrieve_sam('SandiaMod')
@@ -67,10 +70,10 @@ if st.button("Calculate Energy Generation"):
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
         # Fetch TMY data from NSRDB
-        if api_key:
-            nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude)
+        if api_key and full_name and email and affiliation:
+            nsrdb_data = fetch_nsrdb_tmy(api_key, latitude, longitude, full_name, email, affiliation)
         else:
-            st.error("Please enter your NSRDB API key.")
+            st.error("Please enter your NSRDB API key, full name, email, and affiliation.")
             nsrdb_data = None
 
         if nsrdb_data is not None:
