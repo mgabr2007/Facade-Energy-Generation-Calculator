@@ -126,9 +126,10 @@ if st.button("Calculate Energy Generation"):
             # Debug: Check DC power values
             st.write("DC Power Head", dc_power.head())
 
-            # Convert DC power to AC power
+            # Convert DC power to AC power using SNL inverter model
+            inverter = pvlib.pvsystem.retrieve_sam('CECInverter')['SMA_America__SC630CP_US__2014_']  # Example inverter
             try:
-                ac_power = pv_system.snlinverter(dc_power)
+                ac_power = pvlib.inverter.snl(dc_power, inverter)
             except Exception as e:
                 st.error(f"Error calculating AC power: {e}")
                 st.stop()
