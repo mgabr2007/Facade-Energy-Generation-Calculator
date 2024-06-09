@@ -9,8 +9,8 @@ from io import StringIO
 def fetch_nsrdb_tmy(api_key, latitude, longitude):
     url = (
         f"https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-tmy-download.csv?"
-        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=2018&leap_day=false&interval=60&utc=false"
-        f"&full_name=YourName&email=YourEmail@example.com&affiliation=YourAffiliation&mailing_list=false"
+        f"api_key={api_key}&lat={latitude}&lon={longitude}&names=tmy-2018&leap_day=false&interval=60&utc=false"
+        f"&full_name=YourName&email=youremail@example.com&affiliation=YourAffiliation&mailing_list=false&wkt=POINT({longitude}%20{latitude})"
     )
     try:
         response = requests.get(url)
