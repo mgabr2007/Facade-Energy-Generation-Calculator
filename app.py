@@ -12,26 +12,6 @@ def fetch_tmy_data(latitude, longitude):
         st.error(f"Error fetching TMY data: {e}")
         return None
 
-# Function to check compatibility between PV module and inverter
-def check_compatibility(pv_module, inverter):
-    max_power = pv_module['Pmp']
-    max_voltage = pv_module['Vmpo']
-    max_current = pv_module['Impo']
-    inverter_voltage = inverter['Vac']
-    inverter_power = inverter['Pdco']
-    
-    if max_voltage > inverter_voltage:
-        st.error("Selected PV module's voltage exceeds the inverter's voltage rating.")
-        return False
-    if max_power > inverter_power:
-        st.error("Selected PV module's power exceeds the inverter's power rating.")
-        return False
-    if max_current > inverter['Idco']:
-        st.error("Selected PV module's current exceeds the inverter's current rating.")
-        return False
-    
-    return True
-
 # Streamlit app interface
 st.title("Facade Energy Generation Calculator")
 
@@ -53,17 +33,51 @@ system_losses = st.number_input("System Losses (%)", min_value=0.0, max_value=10
 sam_data = pvlib.pvsystem.retrieve_sam('SandiaMod')
 available_modules = list(sam_data.keys())
 module_name = st.selectbox("Select PV Module", available_modules, help="Select the PV module from the available list.")
+selected_pv_module = sam_data[module_name]
 
 # Retrieve and display available inverters
 inverter_data = pvlib.pvsystem.retrieve_sam('CECInverter')
 available_inverters = list(inverter_data.keys())
 inverter_name = st.selectbox("Select Inverter", available_inverters, help="Select the inverter from the available list.")
+selected_inverter = inverter_data[inverter_name]
+
+# Display keys to debug and inspect data structure
+st.write("Selected PV Module Keys:", list(selected_pv_module.keys()))
+st.write("Selected Inverter Keys:", list(selected_inverter.keys()))
+
+# Function to check compatibility between PV module and inverter
+def check_compatibility(pv_module, inverter):
+    try:
+        max_power = pv_module['Pmpo']
+        max_voltage = pv_module['Vmpo']
+        max_current = pv_module['Impo']
+        inverter_voltage = inverter['Vac']
+        inverter_power = inverter['Pdco']
+        
+        if max_voltage > inverter_voltage:
+            st.error("Selected PV module's voltage exceeds the inverter's voltage rating.")
+            return False
+        if max_power > inverter_power:
+            st.error("Selected PV module's power exceeds the inverter's power rating.")
+            return False
+        if max_current > inverter['Idco']:
+            st.error("Selected PV module's current exceeds the inverter's current rating.")
+            return False
+    except KeyError as e:
+        st.error(f"Key error: {e}")
+        return False
+
+    return True
 
 if st.button("Calculate Energy Generation"):
     # Validate input dates
     if study_start_date >= study_end_date:
         st.error("End date must be after start date.")
     else:
+        # Check compatibility between PV module and inverter
+        if not check_compatibility(selected_pv_module, selected_inverter):
+            st.stop()
+
         # Generate time range
         times = pd.date_range(start=study_start_date, end=study_end_date, freq='H', tz='Etc/GMT+0')
 
@@ -151,16 +165,9 @@ if st.button("Calculate Energy Generation"):
             # Debug: Check DC power values
             st.write("DC Power Head", dc_power_output.head())
 
-            # Select the chosen inverter
-            inverter = inverter_data[inverter_name]
-
-            # Check compatibility between PV module and inverter
-            if not check_compatibility(pv_module, inverter):
-                st.stop()
-
             # Convert DC power to AC power using Sandia inverter model
             try:
-                ac_power = pvlib.inverter.sandia(dc_power_output, inverter)
+                ac_power = pvlib.inverter.sandia(dc_power_output, selected_inverter)
             except Exception as e:
                 st.error(f"Error calculating AC power: {e}")
                 st.stop()
