@@ -80,15 +80,13 @@ if st.button("Calculate Energy Generation"):
 
         # Inspect data columns to find the timestamp column
         st.write("**Meteorological Data Columns**")
-        st.write(pvgis_data.columns)
+        st.write(pvgis_data.head())
 
         # Ensure the timestamp column is converted to datetime and set as the index
         try:
-            if 'time(UTC)' in pvgis_data.columns:
-                pvgis_data['time'] = pd.to_datetime(pvgis_data['time(UTC)'])
-            else:
-                raise ValueError("Timestamp column not found in PVGIS data.")
-            
+            # Assuming the first column is the timestamp column
+            timestamp_column = pvgis_data.columns[0]
+            pvgis_data['time'] = pd.to_datetime(pvgis_data[timestamp_column], format='%Y%m%d:%H%M')
             pvgis_data = pvgis_data.set_index('time')
             pvgis_data = pvgis_data[~pvgis_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
             pvgis_data = pvgis_data.tz_localize('Etc/GMT+0')
@@ -107,18 +105,18 @@ if st.button("Calculate Energy Generation"):
             st.stop()
         
         # Interpolate zero values
-        if 'DNI' in pvgis_data.columns:
-            pvgis_data['DNI'] = interpolate_zero_values(pvgis_data['DNI'])
-        if 'GHI' in pvgis_data.columns:
-            pvgis_data['GHI'] = interpolate_zero_values(pvgis_data['GHI'])
-        if 'DHI' in pvgis_data.columns:
-            pvgis_data['DHI'] = interpolate_zero_values(pvgis_data['DHI'])
+        if 'G(i)' in pvgis_data.columns:
+            pvgis_data['G(i)'] = interpolate_zero_values(pvgis_data['G(i)'])
+        if 'Gb(i)' in pvgis_data.columns:
+            pvgis_data['Gb(i)'] = interpolate_zero_values(pvgis_data['Gb(i)'])
+        if 'Gd(i)' in pvgis_data.columns:
+            pvgis_data['Gd(i)'] = interpolate_zero_values(pvgis_data['Gd(i)'])
 
         # Check for remaining zero values
-        if ('GHI' in pvgis_data.columns and (pvgis_data['GHI'] == 0).all()) or \
-           ('DNI' in pvgis_data.columns and (pvgis_data['DNI'] == 0).all()) or \
-           ('DHI' in pvgis_data.columns and (pvgis_data['DHI'] == 0).all()):
-            st.warning("Irradiance values (GHI, DNI, DHI) contain zeros. This may affect the accuracy of the calculations.")
+        if ('G(i)' in pvgis_data.columns and (pvgis_data['G(i)'] == 0).all()) or \
+           ('Gb(i)' in pvgis_data.columns and (pvgis_data['Gb(i)'] == 0).all()) or \
+           ('Gd(i)' in pvgis_data.columns and (pvgis_data['Gd(i)'] == 0).all()):
+            st.warning("Irradiance values (G(i), Gb(i), Gd(i)) contain zeros. This may affect the accuracy of the calculations.")
             margin_of_error = 20  # Example margin of error in percentage
             st.warning(f"Proceeding with the calculation may introduce a margin of error of approximately {margin_of_error}%.")
 
@@ -130,11 +128,11 @@ if st.button("Calculate Energy Generation"):
         solar_position = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
         # Get irradiance data
-        dni = pvgis_data['DNI'] if 'DNI' in pvgis_data.columns else None
-        ghi = pvgis_data['GHI'] if 'GHI' in pvgis_data.columns else None
-        dhi = pvgis_data['DHI'] if 'DHI' in pvgis_data.columns else None
-        temp_air = pvgis_data['Temperature'] if 'Temperature' in pvgis_data.columns else None
-        wind_speed = pvgis_data['Wind Speed'] if 'Wind Speed' in pvgis_data.columns else None
+        dni = pvgis_data['Gb(i)'] if 'Gb(i)' in pvgis_data.columns else None
+        ghi = pvgis_data['G(i)'] if 'G(i)' in pvgis_data.columns else None
+        dhi = pvgis_data['Gd(i)'] if 'Gd(i)' in pvgis_data.columns else None
+        temp_air = pvgis_data['T2m'] if 'T2m' in pvgis_data.columns else None
+        wind_speed = pvgis_data['WS10m'] if 'WS10m' in pvgis_data.columns else None
         
         # Debug: Ensure inputs are Series with matching indices
         if dni is not None:
