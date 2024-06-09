@@ -6,8 +6,8 @@ from datetime import datetime
 # Function to fetch TMY data from PVGIS
 def fetch_tmy_data(latitude, longitude):
     try:
-        tmy_data, _ = pvlib.iotools.get_pvgis_tmy(latitude, longitude)
-        return tmy_data
+        tmy_data = pvlib.iotools.get_pvgis_tmy(latitude, longitude)
+        return tmy_data[0]  # Return only the TMY data part
     except Exception as e:
         st.error(f"Error fetching TMY data: {e}")
         return None
