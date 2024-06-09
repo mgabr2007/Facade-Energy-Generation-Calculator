@@ -122,20 +122,21 @@ if st.button("Calculate Energy Generation"):
 
             # Calculate the DC power output
             try:
-                dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)['p_mp']
+                dc_power = pv_system.sapm(pd.Series(poa_irradiance.values, index=times), cell_temperature)
+                dc_power_output = dc_power['p_mp']
             except Exception as e:
                 st.error(f"Error calculating DC power: {e}")
                 st.stop()
 
             # Debug: Check DC power values
-            st.write("DC Power Head", dc_power.head())
+            st.write("DC Power Head", dc_power_output.head())
 
             # Select the chosen inverter
             inverter = inverter_data[inverter_name]
 
             # Convert DC power to AC power using Sandia inverter model
             try:
-                ac_power = pvlib.inverter.sandia(dc_power, inverter)
+                ac_power = pvlib.inverter.sandia(dc_power_output, inverter)
             except Exception as e:
                 st.error(f"Error calculating AC power: {e}")
                 st.stop()
