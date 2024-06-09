@@ -21,7 +21,7 @@ def fetch_pvgis_data(latitude, longitude, start_date, end_date):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            data = pd.read_csv(StringIO(response.text), skiprows=9)
+            data = pd.read_csv(StringIO(response.text), skiprows=10)  # Adjusted skiprows
             return data
         else:
             st.error(f"Error fetching PVGIS data: {response.status_code} - {response.text}")
@@ -86,7 +86,8 @@ if st.button("Calculate Energy Generation"):
         try:
             # Assuming the first column is the timestamp column
             timestamp_column = pvgis_data.columns[0]
-            pvgis_data['time'] = pd.to_datetime(pvgis_data[timestamp_column], format='%Y%m%d:%H%M')
+            pvgis_data['time'] = pd.to_datetime(pvgis_data[timestamp_column], format='%Y%m%d:%H%M', errors='coerce')
+            pvgis_data = pvgis_data.dropna(subset=['time'])  # Drop rows where 'time' could not be parsed
             pvgis_data = pvgis_data.set_index('time')
             pvgis_data = pvgis_data[~pvgis_data.index.duplicated(keep='first')]  # Remove duplicate timestamps
             pvgis_data = pvgis_data.tz_localize('Etc/GMT+0')
